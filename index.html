@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hệ thống chấm công / 勤怠システム</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1 id="appTitle">Hệ thống chấm công</h1>
+    <div class="lang-switch">
+      <button data-lang="vi" class="lang-btn active">VI</button>
+      <button data-lang="ja" class="lang-btn">JA</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- Login screen -->
+    <section id="loginScreen" class="screen active">
+      <div class="card">
+        <h2 data-i18n="loginTitle">Đăng nhập</h2>
+        <form id="loginForm">
+          <label data-i18n="email">Email</label>
+          <input type="email" id="loginEmail" required autocomplete="email" />
+          <label data-i18n="password">Mật khẩu</label>
+          <input type="password" id="loginPassword" required autocomplete="current-password" />
+          <button type="submit" class="btn btn-primary" data-i18n="loginBtn">Đăng nhập</button>
+        </form>
+        <p class="link-row">
+          <span data-i18n="noAccount">Chưa có tài khoản?</span>
+          <a href="#" id="goRegister" data-i18n="goRegister">Đăng ký</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- Register screen -->
+    <section id="registerScreen" class="screen">
+      <div class="card">
+        <h2 data-i18n="registerTitle">Đăng ký người dùng</h2>
+        <form id="registerForm">
+          <label data-i18n="fullName">Họ và tên</label>
+          <input type="text" id="regName" required />
+          <label data-i18n="email">Email</label>
+          <input type="email" id="regEmail" required autocomplete="email" />
+          <label data-i18n="password">Mật khẩu</label>
+          <input type="password" id="regPassword" required minlength="6" autocomplete="new-password" />
+          <button type="submit" class="btn btn-primary" data-i18n="registerBtn">Đăng ký</button>
+        </form>
+        <p class="link-row">
+          <span data-i18n="haveAccount">Đã có tài khoản?</span>
+          <a href="#" id="goLogin" data-i18n="goLogin">Đăng nhập</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- Dashboard screen -->
+    <section id="dashboardScreen" class="screen">
+      <div class="card">
+        <div class="user-bar">
+          <div>
+            <div class="muted" data-i18n="welcome">Xin chào</div>
+            <div id="userName" class="user-name">-</div>
+          </div>
+          <button id="logoutBtn" class="btn btn-ghost" data-i18n="logout">Đăng xuất</button>
+        </div>
+
+        <div class="clock">
+          <div id="currentTime" class="clock-time">--:--:--</div>
+          <div id="currentDate" class="clock-date">----/--/--</div>
+        </div>
+
+        <div id="statusBadge" class="status-badge status-out" data-i18n="statusOut">Chưa chấm công</div>
+
+        <div class="actions">
+          <button id="clockInBtn" class="btn btn-success" data-i18n="clockIn">Chấm công vào</button>
+          <button id="breakStartBtn" class="btn btn-warning" data-i18n="breakStart">Bắt đầu nghỉ</button>
+          <button id="breakEndBtn" class="btn btn-warning" data-i18n="breakEnd">Kết thúc nghỉ</button>
+          <button id="clockOutBtn" class="btn btn-danger" data-i18n="clockOut">Chấm công ra</button>
+        </div>
+
+        <h3 data-i18n="todayLog">Lịch sử hôm nay</h3>
+        <ul id="todayLog" class="log-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
