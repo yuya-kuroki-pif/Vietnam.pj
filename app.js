@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbwaei6-qdNPRUobfddk6nqXqvGwWr3vCcF19e4KDVE98R1AP9Unj4Rvqj6GQVr90Kcu/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwXDYl72uH5ZUbgKQnqlp4ApCNARLFCbTdidHwCh6gZPoOUgMI6ranlCMxGoJam9NUD/exec";
 
 // ============================================================
 // i18n (Vietnamese / Japanese)

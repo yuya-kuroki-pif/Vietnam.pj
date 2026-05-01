@@ -69,11 +69,34 @@ function getSheet(name) {
     sheet = ss.insertSheet(name);
     if (name === USERS_SHEET) {
       sheet.appendRow(["id", "name", "email", "passwordHash", "createdAt"]);
+      sheet.getRange("A:E").setNumberFormat("@"); // text format
     } else if (name === ATT_SHEET) {
       sheet.appendRow(["id", "userId", "type", "timestamp", "date"]);
+      sheet.getRange("A:E").setNumberFormat("@"); // text format
     }
   }
+  // Force text format on data columns so Sheets does not auto-convert
+  // ISO date/timestamp strings into Date values.
+  if (name === ATT_SHEET) {
+    sheet.getRange("D:E").setNumberFormat("@");
+  } else if (name === USERS_SHEET) {
+    sheet.getRange("E:E").setNumberFormat("@");
+  }
   return sheet;
+}
+
+function normalizeDate(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, TIMEZONE, "yyyy-MM-dd");
+  }
+  return String(v);
+}
+
+function normalizeTimestamp(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+  }
+  return String(v);
 }
 
 function getAllRows(sheet) {
@@ -188,10 +211,13 @@ function getTodayLogs(userId) {
   var today = todayStr();
   return rows
     .filter(function (r) {
-      return String(r.userId) === String(userId) && String(r.date) === today;
+      return (
+        String(r.userId) === String(userId) &&
+        normalizeDate(r.date) === today
+      );
     })
     .sort(function (a, b) {
-      return new Date(a.timestamp) - new Date(b.timestamp);
+      return new Date(normalizeTimestamp(a.timestamp)) - new Date(normalizeTimestamp(b.timestamp));
     });
 }
 
@@ -282,7 +308,7 @@ function stripRow(r) {
     id: r.id,
     userId: r.userId,
     type: r.type,
-    timestamp: r.timestamp,
-    date: r.date,
+    timestamp: normalizeTimestamp(r.timestamp),
+    date: normalizeDate(r.date),
   };
 }
