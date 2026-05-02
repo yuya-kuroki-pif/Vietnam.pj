@@ -729,28 +729,44 @@ form select:focus {
   align-items: stretch;
   gap: 8px;
   margin: 4px 0 10px;
+  min-width: 0; /* allow flex children to shrink */
 }
 
 .pattern-strip {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.pattern-strip::-webkit-scrollbar { height: 4px; }
+.pattern-strip::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 2px;
 }
 
 .pattern-strip-chip {
+  flex: 0 0 auto;
+  width: 140px;
+  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 10px 8px;
+  padding: 10px 12px;
   border: 2px solid var(--border);
   background: #fff;
   border-radius: 8px;
   cursor: pointer;
   font-family: inherit;
-  text-align: center;
-  min-height: 56px;
-  transition: transform 0.08s ease, border-color 0.1s, box-shadow 0.1s;
+  text-align: left;
+  min-height: 64px;
+  transition: transform 0.08s ease, border-color 0.1s, box-shadow 0.15s, background 0.1s;
   position: relative;
 }
 
@@ -762,28 +778,33 @@ form select:focus {
   color: var(--text);
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  gap: 6px;
+  min-width: 0;
 }
 
 .pattern-strip-chip-name::before {
   content: "";
-  display: inline-block;
+  flex-shrink: 0;
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: var(--pat-color, var(--primary));
-  flex-shrink: 0;
+}
+
+.pattern-strip-chip-name span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
 }
 
 .pattern-strip-chip-time {
   font-size: 11px;
   color: var(--muted);
-  margin-top: 2px;
+  margin-top: 4px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .pattern-strip-chip.armed {
@@ -792,21 +813,13 @@ form select:focus {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
-.pattern-strip-chip.armed .pattern-strip-chip-name {
-  color: #fff;
-}
-
-.pattern-strip-chip.armed .pattern-strip-chip-name::before {
-  background: #fff;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
-}
-
-.pattern-strip-chip.armed .pattern-strip-chip-time {
-  color: rgba(255, 255, 255, 0.9);
-}
+.pattern-strip-chip.armed .pattern-strip-chip-name { color: #fff; }
+.pattern-strip-chip.armed .pattern-strip-chip-name::before { background: #fff; }
+.pattern-strip-chip.armed .pattern-strip-chip-time { color: rgba(255, 255, 255, 0.95); }
 
 .pattern-edit-btn {
   flex-shrink: 0;
+  align-self: stretch;
   width: 48px;
   border: 1px solid var(--border);
   background: #fff;

@@ -106,8 +106,10 @@ function jsonResponse(obj) {
 function getSheet(name) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(name);
+  var freshlyCreated = false;
   if (!sheet) {
     sheet = ss.insertSheet(name);
+    freshlyCreated = true;
     if (name === USERS_SHEET) {
       sheet.appendRow(USER_COLUMNS);
       sheet.getRange(1, 1, 1, USER_COLUMNS.length).setFontWeight("bold");
@@ -117,32 +119,65 @@ function getSheet(name) {
       sheet.appendRow(["id", "userId", "userName", "date", "startTime", "endTime", "note", "createdAt"]);
     } else if (name === PATTERNS_SHEET) {
       sheet.appendRow(["id", "name", "startTime", "endTime", "color"]);
+    }
+  }
+  // Force text format BEFORE writing any time/date data so Sheets does not
+  // auto-convert "22:00" / "06:00" etc. into Date values internally.
+  if (sheet.getMaxColumns() > 0) {
+    sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).setNumberFormat("@");
+  }
+  if (name === PATTERNS_SHEET) {
+    // Insert default rows after text format is applied so the time strings
+    // ("22:00" / "06:00" for the night shift) remain as plain text.
+    if (freshlyCreated) {
       for (var p = 0; p < DEFAULT_PATTERNS.length; p++) {
         sheet.appendRow(DEFAULT_PATTERNS[p]);
       }
+    } else if (sheet.getLastRow() < 4) {
+      // Re-seed any missing default pattern rows.
+      var existingIds = {};
+      if (sheet.getLastRow() >= 2) {
+        var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+        ids.forEach(function (r) { existingIds[String(r[0])] = true; });
+      }
+      DEFAULT_PATTERNS.forEach(function (p) {
+        if (!existingIds[p[0]]) sheet.appendRow(p);
+      });
     }
-  }
-  // Ensure pattern sheet exists with default rows even if header was created
-  // but rows were emptied by accident.
-  if (name === PATTERNS_SHEET && sheet.getLastRow() < 4) {
-    var existingIds = {};
-    if (sheet.getLastRow() >= 2) {
-      var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
-      ids.forEach(function (r) { existingIds[String(r[0])] = true; });
-    }
-    DEFAULT_PATTERNS.forEach(function (p) {
-      if (!existingIds[p[0]]) sheet.appendRow(p);
-    });
-  }
-  // Force text format on the entire sheet so Sheets does not auto-convert
-  // ISO date / time / timestamp strings into Date values.
-  if (sheet.getMaxColumns() > 0) {
-    sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).setNumberFormat("@");
+    // Self-heal: if any time cell is a Date (legacy data from before the
+    // text-format fix), rewrite it as plain text in spreadsheet local time.
+    healPatternTimes(sheet);
   }
   if (name === USERS_SHEET) {
     ensureUserColumns(sheet);
   }
   return sheet;
+}
+
+// Returns the spreadsheet's configured timezone (used for round-tripping
+// time-only Date values that Sheets created from a text input).
+function getSpreadsheetTz() {
+  return SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+}
+
+// Convert any Date-typed cells in the pattern sheet's time columns back to
+// plain text strings so the values match exactly what registerShift saves.
+function healPatternTimes(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var range = sheet.getRange(2, 3, lastRow - 1, 2); // C: startTime, D: endTime
+  var values = range.getValues();
+  var changed = false;
+  var tz = getSpreadsheetTz();
+  for (var i = 0; i < values.length; i++) {
+    for (var j = 0; j < 2; j++) {
+      if (values[i][j] instanceof Date) {
+        values[i][j] = Utilities.formatDate(values[i][j], tz, "HH:mm");
+        changed = true;
+      }
+    }
+  }
+  if (changed) range.setValues(values);
 }
 
 // Auto-migrate existing Users sheets that are missing newer columns.
@@ -207,7 +242,10 @@ function normalizeTimestamp(v) {
 
 function normalizeTime(v) {
   if (v instanceof Date) {
-    return Utilities.formatDate(v, TIMEZONE, "HH:mm");
+    // Use the spreadsheet's own timezone — a value Sheets parsed from a
+    // text input like "22:00" was stored relative to that timezone, so
+    // formatting back with the same TZ round-trips correctly.
+    return Utilities.formatDate(v, getSpreadsheetTz(), "HH:mm");
   }
   var s = String(v);
   if (s.length >= 5 && s.charAt(2) === ":") return s.substring(0, 5);
