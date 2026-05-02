@@ -1680,10 +1680,30 @@ let txCurrentTab = "purchase";
 let txStores = [];
 let pettyType = "out"; // active type in petty modal
 
+// Compact đ formatter applied everywhere in the app.
+//   < 1,000          → as-is             (e.g. "500 đ")
+//   1,000 ≤ x < 1M   → "Xk đ"            (e.g. "20k đ", "1.5k đ")
+//   ≥ 1,000,000      → "X.YM đ" / "XM đ" (e.g. "1.5M đ", "25M đ")
 function fmtVnd(n) {
   const v = Math.round(Number(n) || 0);
-  return v.toLocaleString("vi-VN") + " đ";
+  if (v === 0) return "0 đ";
+  const sign = v < 0 ? "-" : "";
+  const abs = Math.abs(v);
+  if (abs >= 1000000) {
+    const m = abs / 1000000;
+    const s = m >= 10 ? m.toFixed(0) : m.toFixed(1).replace(/\.0$/, "");
+    return sign + s + "M đ";
+  }
+  if (abs >= 1000) {
+    const k = abs / 1000;
+    const s = k >= 10 ? k.toFixed(0) : k.toFixed(1).replace(/\.0$/, "");
+    return sign + s + "k đ";
+  }
+  return sign + abs.toLocaleString("vi-VN") + " đ";
 }
+
+// Backward-compatible alias — older code paths still call fmtVndCompact.
+const fmtVndCompact = fmtVnd;
 
 let txVendors = [];
 
@@ -2551,24 +2571,24 @@ function renderDashboard(d) {
         <div class="dash-card-sub">${t("dashSalesSub")}</div>
       </div>
       <div class="dash-card-value-wrap">
-        <div class="dash-card-value positive">${fmtVnd(d.sales.total)}</div>
+        <div class="dash-card-value positive">${fmtVndCompact(d.sales.total)}</div>
       </div>
     </div>
     <div class="dash-row">
       <span class="dash-row-label">${t("dashFood")}</span>
-      <span class="dash-row-value">${fmtVnd(d.sales.food)}</span>
+      <span class="dash-row-value">${fmtVndCompact(d.sales.food)}</span>
     </div>
     <div class="dash-row">
       <span class="dash-row-label">${t("dashDrink")}</span>
-      <span class="dash-row-value">${fmtVnd(d.sales.drink)}</span>
+      <span class="dash-row-value">${fmtVndCompact(d.sales.drink)}</span>
     </div>
     ${d.sales.other ? `<div class="dash-row">
       <span class="dash-row-label">${t("otherSales")}</span>
-      <span class="dash-row-value">${fmtVnd(d.sales.other)}</span>
+      <span class="dash-row-value">${fmtVndCompact(d.sales.other)}</span>
     </div>` : ""}
     <div class="dash-row">
       <span class="dash-row-label">${t("dashAvgPerCustomer")} / ${t("dashCustomers")}</span>
-      <span class="dash-row-value">${fmtVnd(d.sales.avgPerCustomer)} / ${d.sales.customers}人</span>
+      <span class="dash-row-value">${fmtVndCompact(d.sales.avgPerCustomer)} / ${d.sales.customers}人</span>
     </div>
   `;
   root.appendChild(salesCard);
@@ -2590,7 +2610,7 @@ function renderDashboard(d) {
     <div class="dash-progress">
       <div class="dash-progress-bar ${todayPctNum >= 100 ? "success" : ""}" style="width:${Math.min(todayPctNum, 100)}%"></div>
     </div>
-    <div class="dash-card-sub">${fmtVnd(d.sales.total)} / ${fmtVnd(d.target.sales * d.todayDay / d.daysInMonth)}</div>
+    <div class="dash-card-sub">${fmtVndCompact(d.sales.total)} / ${fmtVndCompact(d.target.sales * d.todayDay / d.daysInMonth)}</div>
 
     <div class="dash-card-header" style="margin-top:18px;">
       <div>
@@ -2603,7 +2623,7 @@ function renderDashboard(d) {
     <div class="dash-progress">
       <div class="dash-progress-bar" style="width:${Math.min(monthPctNum, 100)}%"></div>
     </div>
-    <div class="dash-card-sub">${fmtVnd(d.sales.total)} / ${fmtVnd(d.target.sales)}</div>
+    <div class="dash-card-sub">${fmtVndCompact(d.sales.total)} / ${fmtVndCompact(d.target.sales)}</div>
   `;
   root.appendChild(achCard);
 
@@ -2664,16 +2684,16 @@ function renderDashboard(d) {
     </div>
     <div class="dash-row">
       <span class="dash-row-label">${t("dashLaborCost")}</span>
-      <span class="dash-row-value">${fmtVnd(d.labor.cost)}</span>
+      <span class="dash-row-value">${fmtVndCompact(d.labor.cost)}</span>
     </div>
     <div class="dash-row">
       <span class="dash-row-label">${t("dashAttLabor")}</span>
-      <span class="dash-row-value">${fmtVnd(att.cost)} (${pctValueFmt(att.ratio * 100)})</span>
+      <span class="dash-row-value">${fmtVndCompact(att.cost)} (${pctValueFmt(att.ratio * 100)})</span>
     </div>
     <div class="dash-row">
       <span class="dash-row-label">${t("dashOtherLabor")}</span>
       <span>
-        <span class="dash-row-value">${fmtVnd(other.cost)} (${pctValueFmt(other.ratio * 100)})</span>
+        <span class="dash-row-value">${fmtVndCompact(other.cost)} (${pctValueFmt(other.ratio * 100)})</span>
         <button type="button" class="dash-row-edit-btn" id="editOtherLaborBtn">${t("editLabel")}</button>
       </span>
     </div>
@@ -2683,7 +2703,7 @@ function renderDashboard(d) {
     </div>
     <div class="dash-row">
       <span class="dash-row-label">${t("dashSalesPerHour")}</span>
-      <span class="dash-row-value">${fmtVnd(d.labor.salesPerHour || 0)}</span>
+      <span class="dash-row-value">${fmtVndCompact(d.labor.salesPerHour || 0)}</span>
     </div>
   `;
   root.appendChild(laborCard);
@@ -2700,7 +2720,7 @@ function renderDashboard(d) {
         <div class="dash-card-label">${t("dashProfit")}</div>
       </div>
       <div class="dash-card-value-wrap">
-        <div class="dash-card-value">${fmtVnd(d.profit.amount)}</div>
+        <div class="dash-card-value">${fmtVndCompact(d.profit.amount)}</div>
       </div>
     </div>
     <div class="dash-row">
@@ -2733,7 +2753,7 @@ function renderDailySalesList(items) {
     date.textContent = it.date;
     const amt = document.createElement("span");
     amt.className = "tx-card-amount";
-    amt.textContent = fmtVnd(total);
+    amt.textContent = fmtVndCompact(total);
     row1.appendChild(date);
     row1.appendChild(amt);
 
@@ -2741,17 +2761,17 @@ function renderDailySalesList(items) {
     row3.className = "tx-card-row3";
     if (it.foodSales) {
       const s = document.createElement("span");
-      s.textContent = `${t("dashFood")} ${fmtVnd(it.foodSales)}`;
+      s.textContent = `${t("dashFood")} ${fmtVndCompact(it.foodSales)}`;
       row3.appendChild(s);
     }
     if (it.drinkSales) {
       const s = document.createElement("span");
-      s.textContent = `${t("dashDrink")} ${fmtVnd(it.drinkSales)}`;
+      s.textContent = `${t("dashDrink")} ${fmtVndCompact(it.drinkSales)}`;
       row3.appendChild(s);
     }
     if (it.otherSales) {
       const s = document.createElement("span");
-      s.textContent = `${t("otherSales")} ${fmtVnd(it.otherSales)}`;
+      s.textContent = `${t("otherSales")} ${fmtVndCompact(it.otherSales)}`;
       row3.appendChild(s);
     }
     if (it.customers) {
