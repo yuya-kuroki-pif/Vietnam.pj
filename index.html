@@ -8,29 +8,124 @@
 </head>
 <body>
   <header class="app-header">
-    <h1 id="appTitle">Hệ thống chấm công</h1>
-    <div class="lang-switch">
-      <button data-lang="vi" class="lang-btn active">VI</button>
-      <button data-lang="ja" class="lang-btn">JA</button>
+    <button id="menuToggleBtn" class="menu-toggle" aria-label="Menu">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
+    <div class="header-spacer"></div>
+    <div class="header-actions">
+      <div class="lang-switch">
+        <button data-lang="vi" class="lang-btn active">VI</button>
+        <button data-lang="ja" class="lang-btn">JA</button>
+      </div>
     </div>
   </header>
 
+  <!-- Side drawer (hamburger menu) -->
+  <aside id="drawer" class="drawer hidden" aria-hidden="true">
+    <div class="drawer-backdrop"></div>
+    <nav class="drawer-panel">
+      <div class="drawer-header">
+        <span data-i18n="menuTitle">Menu</span>
+        <button type="button" id="drawerClose" class="drawer-close" aria-label="Close">&times;</button>
+      </div>
+      <button type="button" class="drawer-item" data-target="dashboard">
+        <span class="drawer-icon">🕐</span>
+        <span data-i18n="menuAttendance">Hệ thống chấm công</span>
+      </button>
+      <button type="button" class="drawer-item" data-target="register">
+        <span class="drawer-icon">👤</span>
+        <span data-i18n="menuRegister">Đăng ký người dùng</span>
+      </button>
+    </nav>
+  </aside>
+
   <main id="app">
-    <!-- Login screen -->
-    <section id="loginScreen" class="screen active">
+    <!-- Dashboard (kiosk) -->
+    <section id="dashboardScreen" class="screen active">
       <div class="card">
-        <h2 data-i18n="loginTitle">Đăng nhập</h2>
-        <form id="loginForm">
-          <label data-i18n="email">Email</label>
-          <input type="email" id="loginEmail" required autocomplete="email" />
-          <label data-i18n="password">Mật khẩu</label>
-          <input type="password" id="loginPassword" required autocomplete="current-password" />
-          <button type="submit" class="btn btn-primary" data-i18n="loginBtn">Đăng nhập</button>
-        </form>
-        <p class="link-row">
-          <span data-i18n="noAccount">Chưa có tài khoản?</span>
-          <a href="#" id="goRegister" data-i18n="goRegister">Đăng ký</a>
-        </p>
+        <nav class="tab-bar">
+          <button class="tab-btn active" data-tab="attendance" data-i18n="tabAttendance">Chấm công</button>
+          <button class="tab-btn" data-tab="shiftRegister" data-i18n="tabShiftRegister">Đăng ký ca</button>
+          <button class="tab-btn" data-tab="shiftManage" data-i18n="tabShiftManage">Quản lý ca</button>
+        </nav>
+
+        <!-- Attendance tab -->
+        <div id="tab-attendance" class="tab-panel active">
+          <div class="picker-row">
+            <label class="picker-label" data-i18n="pickUser">Chọn nhân viên</label>
+            <select id="userPickerAttendance" class="user-picker">
+              <option value="" data-i18n="pickPlaceholder">-- Chọn --</option>
+            </select>
+          </div>
+
+          <div class="clock">
+            <div id="currentTime" class="clock-time">--:--:--</div>
+            <div id="currentDate" class="clock-date">----/--/--</div>
+          </div>
+
+          <div id="statusBadge" class="status-badge status-out" data-i18n="statusOut">Chưa chấm công</div>
+
+          <div class="actions">
+            <button id="clockInBtn" class="btn btn-success" data-i18n="clockIn">Chấm công vào</button>
+            <button id="breakStartBtn" class="btn btn-warning" data-i18n="breakStart">Bắt đầu nghỉ</button>
+            <button id="breakEndBtn" class="btn btn-warning" data-i18n="breakEnd">Kết thúc nghỉ</button>
+            <button id="clockOutBtn" class="btn btn-danger" data-i18n="clockOut">Chấm công ra</button>
+          </div>
+
+          <h3 data-i18n="todayLog">Lịch sử hôm nay</h3>
+          <ul id="todayLog" class="log-list"></ul>
+        </div>
+
+        <!-- Shift register tab -->
+        <div id="tab-shiftRegister" class="tab-panel">
+          <div class="picker-row">
+            <label class="picker-label" data-i18n="pickUser">Chọn nhân viên</label>
+            <select id="userPickerShift" class="user-picker">
+              <option value="" data-i18n="pickPlaceholder">-- Chọn --</option>
+            </select>
+          </div>
+
+          <div class="cal-toolbar">
+            <button type="button" id="editPatternsBtn" class="btn-mini" data-i18n="editPatterns">⚙ Mẫu ca</button>
+          </div>
+
+          <div class="month-nav">
+            <button id="prevCalMonthBtn" class="btn btn-ghost month-btn">«</button>
+            <span id="calMonthLabel" class="month-label">----/--</span>
+            <button id="nextCalMonthBtn" class="btn btn-ghost month-btn">»</button>
+          </div>
+
+          <div id="calendar" class="calendar"></div>
+
+          <div class="cal-hint muted" data-i18n="calHint">
+            Bấm vào ngày để đăng ký ca
+          </div>
+        </div>
+
+        <!-- Shift manage tab (weekly view, Mon start) -->
+        <div id="tab-shiftManage" class="tab-panel">
+          <div class="month-nav">
+            <button id="prevWeekBtn" class="btn btn-ghost month-btn">«</button>
+            <span id="currentWeekLabel" class="month-label">----/--/-- - ----/--/--</span>
+            <button id="nextWeekBtn" class="btn btn-ghost month-btn">»</button>
+          </div>
+          <div class="cal-toolbar">
+            <button type="button" id="thisWeekBtn" class="btn-mini" data-i18n="thisWeekBtn">今週</button>
+          </div>
+          <div class="picker-row">
+            <label class="picker-label" data-i18n="filterByUser">Lọc theo nhân viên</label>
+            <select id="userFilterManage" class="user-picker">
+              <option value="" data-i18n="filterAll">-- Tất cả --</option>
+            </select>
+          </div>
+          <div id="weekGrid" class="week-grid"></div>
+          <div id="userLegend" class="user-legend"></div>
+          <div class="cal-hint muted" data-i18n="manageHint">
+            Bấm vào ca để xóa
+          </div>
+        </div>
       </div>
     </section>
 
@@ -39,51 +134,131 @@
       <div class="card">
         <h2 data-i18n="registerTitle">Đăng ký người dùng</h2>
         <form id="registerForm">
-          <label data-i18n="fullName">Họ và tên</label>
-          <input type="text" id="regName" required />
-          <label data-i18n="email">Email</label>
-          <input type="email" id="regEmail" required autocomplete="email" />
-          <label data-i18n="password">Mật khẩu</label>
-          <input type="password" id="regPassword" required minlength="6" autocomplete="new-password" />
-          <button type="submit" class="btn btn-primary" data-i18n="registerBtn">Đăng ký</button>
-        </form>
-        <p class="link-row">
-          <span data-i18n="haveAccount">Đã có tài khoản?</span>
-          <a href="#" id="goLogin" data-i18n="goLogin">Đăng nhập</a>
-        </p>
-      </div>
-    </section>
+          <h4 class="form-section" data-i18n="sectionBasic">Thông tin cơ bản</h4>
 
-    <!-- Dashboard screen -->
-    <section id="dashboardScreen" class="screen">
-      <div class="card">
-        <div class="user-bar">
-          <div>
-            <div class="muted" data-i18n="welcome">Xin chào</div>
-            <div id="userName" class="user-name">-</div>
+          <label>
+            <span data-i18n="fullName">Họ và tên</span>
+            <span class="required">*</span>
+          </label>
+          <input type="text" id="regName" required maxlength="80" autocomplete="off" />
+
+          <label>
+            <span data-i18n="positionLabel">Chức vụ</span>
+            <span class="required">*</span>
+          </label>
+          <select id="regRole" required>
+            <option value="employee" data-i18n="positionEmployee">Nhân viên chính thức</option>
+            <option value="admin" data-i18n="positionAdmin">Quản trị viên</option>
+            <option value="parttime" data-i18n="positionParttime">Nhân viên bán thời gian</option>
+          </select>
+
+          <div class="form-row-2">
+            <div>
+              <label data-i18n="gender">Giới tính</label>
+              <select id="regGender">
+                <option value="" data-i18n="genderEmpty">--</option>
+                <option value="male" data-i18n="genderMale">Nam</option>
+                <option value="female" data-i18n="genderFemale">Nữ</option>
+                <option value="other" data-i18n="genderOther">Khác</option>
+              </select>
+            </div>
+            <div>
+              <label data-i18n="birthDate">Ngày sinh</label>
+              <input type="date" id="regBirthDate" />
+            </div>
           </div>
-          <button id="logoutBtn" class="btn btn-ghost" data-i18n="logout">Đăng xuất</button>
-        </div>
 
-        <div class="clock">
-          <div id="currentTime" class="clock-time">--:--:--</div>
-          <div id="currentDate" class="clock-date">----/--/--</div>
-        </div>
+          <label data-i18n="idNumber">Số CCCD/CMND</label>
+          <input type="text" id="regIdNumber" maxlength="30" autocomplete="off" />
 
-        <div id="statusBadge" class="status-badge status-out" data-i18n="statusOut">Chưa chấm công</div>
+          <h4 class="form-section" data-i18n="sectionContact">Liên hệ</h4>
 
-        <div class="actions">
-          <button id="clockInBtn" class="btn btn-success" data-i18n="clockIn">Chấm công vào</button>
-          <button id="breakStartBtn" class="btn btn-warning" data-i18n="breakStart">Bắt đầu nghỉ</button>
-          <button id="breakEndBtn" class="btn btn-warning" data-i18n="breakEnd">Kết thúc nghỉ</button>
-          <button id="clockOutBtn" class="btn btn-danger" data-i18n="clockOut">Chấm công ra</button>
-        </div>
+          <label data-i18n="phone">Số điện thoại</label>
+          <input type="tel" id="regPhone" maxlength="20" autocomplete="off" />
 
-        <h3 data-i18n="todayLog">Lịch sử hôm nay</h3>
-        <ul id="todayLog" class="log-list"></ul>
+          <label>
+            <span data-i18n="email">Email</span>
+            <span class="muted" data-i18n="optional"> (tùy chọn)</span>
+          </label>
+          <input type="email" id="regEmail" autocomplete="off" />
+
+          <label data-i18n="address">Địa chỉ</label>
+          <input type="text" id="regAddress" maxlength="200" autocomplete="off" />
+
+          <label data-i18n="emergencyContact">Liên hệ khẩn cấp</label>
+          <input type="text" id="regEmergencyContact" maxlength="100" autocomplete="off" />
+
+          <h4 class="form-section" data-i18n="sectionEmployment">Việc làm</h4>
+
+          <label data-i18n="hireDate">Ngày vào làm</label>
+          <input type="date" id="regHireDate" />
+
+          <h4 class="form-section" data-i18n="sectionBank">Tài khoản ngân hàng (Việt Nam)</h4>
+
+          <label data-i18n="bankName">Tên ngân hàng</label>
+          <input type="text" id="regBankName" maxlength="80" autocomplete="off" />
+
+          <div class="form-row-2">
+            <div>
+              <label data-i18n="bankBranch">Chi nhánh</label>
+              <input type="text" id="regBankBranch" maxlength="80" autocomplete="off" />
+            </div>
+            <div>
+              <label data-i18n="bankAccount">Số tài khoản</label>
+              <input type="text" id="regBankAccount" maxlength="30" inputmode="numeric" autocomplete="off" />
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" data-i18n="registerBtn">Đăng ký</button>
+          <button type="button" id="cancelRegisterBtn" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
+        </form>
       </div>
     </section>
   </main>
+
+  <!-- Add-shift modal -->
+  <div id="addShiftModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="addShiftClose">&times;</button>
+      <h3 data-i18n="addShiftTitle">Đăng ký ca</h3>
+      <div id="modalDateLabel" class="modal-date">----/--/--</div>
+
+      <div id="modalExistingShifts" class="modal-existing"></div>
+
+      <h4 class="form-section" data-i18n="pickPattern">Chọn mẫu ca</h4>
+      <div id="patternGrid" class="pattern-grid"></div>
+
+      <div id="customTimeRow" class="form-row-2 hidden">
+        <div>
+          <label data-i18n="shiftStart">Bắt đầu</label>
+          <input type="time" id="modalStartTime" />
+        </div>
+        <div>
+          <label data-i18n="shiftEnd">Kết thúc</label>
+          <input type="time" id="modalEndTime" />
+        </div>
+      </div>
+
+      <label data-i18n="shiftNote">Ghi chú</label>
+      <input type="text" id="modalNote" maxlength="100" />
+
+      <button type="button" id="modalSubmitBtn" class="btn btn-primary" data-i18n="registerShiftBtn">Đăng ký ca</button>
+      <button type="button" id="modalCancelBtn" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
+    </div>
+  </div>
+
+  <!-- Edit patterns modal -->
+  <div id="patternsModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="patternsClose">&times;</button>
+      <h3 data-i18n="editPatternsTitle">Cài đặt mẫu ca</h3>
+      <form id="patternsForm" class="patterns-form"></form>
+      <button type="button" id="patternsSaveBtn" class="btn btn-primary" data-i18n="saveBtn">Lưu</button>
+      <button type="button" id="patternsCancelBtn" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
+    </div>
+  </div>
 
   <div id="toast" class="toast"></div>
   <div id="loading" class="loading hidden">
