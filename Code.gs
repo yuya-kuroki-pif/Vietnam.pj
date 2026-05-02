@@ -34,6 +34,9 @@ var STORES_SHEET = "Stores";
 var VENDORS_SHEET = "Vendors";
 var DAILY_SALES_SHEET = "DailySales";
 var MONTHLY_TARGETS_SHEET = "MonthlyTargets";
+var LOCATIONS_SHEET = "Locations";
+var INVENTORY_ITEMS_SHEET = "InventoryItems";
+var STOCKTAKES_SHEET = "Stocktakes";
 
 var PURCHASE_COLUMNS = [
   "id", "store", "date", "vendor", "productName", "specification",
@@ -44,6 +47,18 @@ var PURCHASE_COLUMNS = [
 var PETTY_COLUMNS = [
   "id", "store", "date", "type", "category", "subCategory",
   "amount", "taxRate", "paymentMethod", "vendor", "taxCode", "note", "createdAt"
+];
+
+var STOCKTAKE_COLUMNS = [
+  "id", "store", "location", "yearMonth", "itemId",
+  "category", "productName", "unit", "vendor", "unitPrice",
+  "quantity", "amount", "note", "createdAt", "updatedAt"
+];
+
+var INVENTORY_ITEMS_COLUMNS = [
+  "id", "store", "category", "productName", "unit",
+  "lastUnitPrice", "lastVendor", "archived",
+  "createdAt", "updatedAt", "lastPurchaseDate"
 ];
 
 // Default 3 shift patterns inserted when the sheet is first created.
@@ -77,6 +92,9 @@ function doPost(e) {
         break;
       case "listUsers":
         result = listUsers(body);
+        break;
+      case "deleteUser":
+        result = deleteUser(body);
         break;
       case "record":
         result = recordAttendance(body);
@@ -162,6 +180,39 @@ function doPost(e) {
       case "getDashboard":
         result = getDashboard(body);
         break;
+      case "listLocations":
+        result = listLocations(body);
+        break;
+      case "registerLocation":
+        result = registerLocation(body);
+        break;
+      case "deleteLocation":
+        result = deleteLocation(body);
+        break;
+      case "listInventoryItems":
+        result = listInventoryItems(body);
+        break;
+      case "registerInventoryItem":
+        result = registerInventoryItem(body);
+        break;
+      case "deleteInventoryItem":
+        result = deleteInventoryItem(body);
+        break;
+      case "listStocktakeSummary":
+        result = listStocktakeSummary(body);
+        break;
+      case "listStocktakeEntries":
+        result = listStocktakeEntries(body);
+        break;
+      case "upsertStocktakeEntry":
+        result = upsertStocktakeEntry(body);
+        break;
+      case "deleteStocktakeEntry":
+        result = deleteStocktakeEntry(body);
+        break;
+      case "copyStocktakeFromPrevMonth":
+        result = copyStocktakeFromPrevMonth(body);
+        break;
       default:
         result = { success: false, message: "Unknown action: " + action };
     }
@@ -220,6 +271,12 @@ function getSheet(name) {
         "foodCostRatioTarget", "drinkCostRatioTarget", "laborCostRatioTarget",
         "monthlyLaborCost", "note", "createdAt"
       ]);
+    } else if (name === LOCATIONS_SHEET) {
+      sheet.appendRow(["id", "store", "name", "sortOrder", "createdAt"]);
+    } else if (name === INVENTORY_ITEMS_SHEET) {
+      sheet.appendRow(INVENTORY_ITEMS_COLUMNS);
+    } else if (name === STOCKTAKES_SHEET) {
+      sheet.appendRow(STOCKTAKE_COLUMNS);
     }
   }
   // Force text format BEFORE writing any time/date data so Sheets does not
@@ -257,6 +314,12 @@ function getSheet(name) {
   }
   if (name === PETTY_SHEET) {
     ensureColumns(sheet, PETTY_COLUMNS);
+  }
+  if (name === STOCKTAKES_SHEET) {
+    ensureColumns(sheet, STOCKTAKE_COLUMNS);
+  }
+  if (name === INVENTORY_ITEMS_SHEET) {
+    ensureColumns(sheet, INVENTORY_ITEMS_COLUMNS);
   }
   return sheet;
 }
@@ -483,7 +546,8 @@ function registerUser(body) {
   };
 }
 
-// List all registered users (for the kiosk user picker).
+// List all registered users (for the kiosk user picker AND master screen).
+// Returns all user-facing fields; consumers cherry-pick what they need.
 function listUsers(body) {
   var sheet = getSheet(USERS_SHEET);
   var users = getAllRows(sheet);
@@ -495,9 +559,22 @@ function listUsers(body) {
   return {
     success: true,
     users: users.map(function (u) {
-      return { id: u.id, name: u.name, email: u.email };
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        phone: u.phone,
+        store: u.store,
+        hourlyRate: _toNum(u.hourlyRate),
+        hireDate: u.hireDate,
+      };
     }),
   };
+}
+
+function deleteUser(body) {
+  return _deleteFromSheet(USERS_SHEET, (body.id || "").toString());
 }
 
 // ----------------------------------------------------------------
@@ -913,6 +990,15 @@ function registerPurchase(body) {
     sheet.appendRow(row);
     _ensureInMaster(STORES_SHEET, store);
     if (vendor) _ensureInMaster(VENDORS_SHEET, vendor);
+    // Auto-track item in inventory master so it shows up in stocktake suggestions.
+    _upsertInventoryItem(
+      store,
+      (body.category || "").toString(),
+      productName,
+      "",
+      _toNum(body.unitPrice) * (1 + _toNum(body.taxRate) / 100),
+      vendor
+    );
     return { success: true };
   } finally {
     lock.releaseLock();
@@ -1446,14 +1532,50 @@ function getDashboard(body) {
   var monthlyPurchases = purchaseRows.filter(function (r) {
     return String(r.store) === store && normalizeDate(r.date).indexOf(yearMonth) === 0;
   });
-  var foodCost = 0, drinkCost = 0, otherCost = 0;
+  var foodPurchases = 0, drinkPurchases = 0, otherCost = 0;
   monthlyPurchases.forEach(function (r) {
     var amt = _toNum(r.unitPrice) * _toNum(r.quantity) * (1 + _toNum(r.taxRate) / 100);
     var cat = String(r.category || "");
-    if (cat === "food") foodCost += amt;
-    else if (cat === "drink") drinkCost += amt;
+    if (cat === "food") foodPurchases += amt;
+    else if (cat === "drink") drinkPurchases += amt;
     else otherCost += amt;
   });
+
+  // Stocktake-based cost: 当月使用高 = 前月棚卸高 + 当月仕入れ - 当月棚卸高
+  // (only applied when stocktake data exists for that category — otherwise we
+  // fall back to the simple "purchases-only" cost so this still works before
+  // the user starts using the stocktake feature.)
+  var prevYM = (function () {
+    var py = year, pm = month - 1;
+    if (pm < 1) { pm = 12; py -= 1; }
+    return py + "-" + (pm < 10 ? "0" + pm : "" + pm);
+  })();
+  var stRows = getAllRows(getSheet(STOCKTAKES_SHEET));
+  var prevStock = { food: 0, drink: 0 };
+  var currStock = { food: 0, drink: 0 };
+  var hasPrevStock = { food: false, drink: false };
+  var hasCurrStock = { food: false, drink: false };
+  stRows.forEach(function (r) {
+    if (String(r.store) !== store) return;
+    var cat = String(r.category || "");
+    if (cat !== "food" && cat !== "drink") return;
+    var ym = String(r.yearMonth || "");
+    var amt = _toNum(r.amount);
+    if (ym === yearMonth) {
+      currStock[cat] += amt;
+      hasCurrStock[cat] = true;
+    } else if (ym === prevYM) {
+      prevStock[cat] += amt;
+      hasPrevStock[cat] = true;
+    }
+  });
+
+  var foodCost = (hasPrevStock.food || hasCurrStock.food)
+    ? (prevStock.food + foodPurchases - currStock.food)
+    : foodPurchases;
+  var drinkCost = (hasPrevStock.drink || hasCurrStock.drink)
+    ? (prevStock.drink + drinkPurchases - currStock.drink)
+    : drinkPurchases;
   var totalCost = foodCost + drinkCost + otherCost;
 
   // Monthly targets / manual labor cost
@@ -1631,5 +1753,581 @@ function _ensureInMaster(sheetName, name) {
     sheet.appendRow([uuid(), name, "", "", "", nowIso()]);
   } else if (sheetName === VENDORS_SHEET) {
     sheet.appendRow([uuid(), name, "", "", "", "", nowIso()]);
+  }
+}
+
+// ----------------------------------------------------------------
+// Locations master (per store)
+// ----------------------------------------------------------------
+function listLocations(body) {
+  var store = (body.store || "").toString();
+  if (!store) return { success: false, message: "Missing store" };
+  var rows = getAllRows(getSheet(LOCATIONS_SHEET));
+  var filtered = rows.filter(function (r) { return String(r.store) === store; });
+  filtered.sort(function (a, b) {
+    var oa = _toNum(a.sortOrder), ob = _toNum(b.sortOrder);
+    if (oa !== ob) return oa - ob;
+    return String(a.name).localeCompare(String(b.name));
+  });
+  return {
+    success: true,
+    locations: filtered.map(function (r) {
+      return { id: r.id, store: r.store, name: r.name, sortOrder: _toNum(r.sortOrder) };
+    }),
+  };
+}
+
+function registerLocation(body) {
+  var store = (body.store || "").toString().trim();
+  var name = (body.name || "").toString().trim();
+  if (!store || !name) return { success: false, message: "Missing fields" };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var sheet = getSheet(LOCATIONS_SHEET);
+    var rows = getAllRows(sheet);
+    var lower = name.toLowerCase();
+    if (rows.some(function (r) {
+      return String(r.store) === store && String(r.name || "").trim().toLowerCase() === lower;
+    })) {
+      return { success: false, code: "DUPLICATE", message: "Location already exists" };
+    }
+    var nextOrder = (rows.filter(function (r) { return String(r.store) === store; }).length + 1) * 10;
+    sheet.appendRow([uuid(), store, name, nextOrder, nowIso()]);
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteLocation(body) {
+  return _deleteFromSheet(LOCATIONS_SHEET, (body.id || "").toString());
+}
+
+// ----------------------------------------------------------------
+// Inventory items master (auto-populated from purchases)
+// ----------------------------------------------------------------
+function listInventoryItems(body) {
+  var store = (body.store || "").toString();
+  if (!store) return { success: false, message: "Missing store" };
+  var rows = getAllRows(getSheet(INVENTORY_ITEMS_SHEET));
+  var filtered = rows.filter(function (r) {
+    return String(r.store) === store && !r.archived;
+  });
+  filtered.sort(function (a, b) {
+    var ua = String(a.updatedAt || "");
+    var ub = String(b.updatedAt || "");
+    return ua < ub ? 1 : ua > ub ? -1 : 0; // newest updated first
+  });
+  return {
+    success: true,
+    items: filtered.map(function (r) {
+      return {
+        id: r.id,
+        category: r.category,
+        productName: r.productName,
+        unit: r.unit,
+        lastUnitPrice: _toNum(r.lastUnitPrice),
+        lastVendor: r.lastVendor,
+        lastPurchaseDate: r.lastPurchaseDate || "",
+        updatedAt: r.updatedAt,
+      };
+    }),
+  };
+}
+
+function registerInventoryItem(body) {
+  var store = (body.store || "").toString().trim();
+  var productName = (body.productName || "").toString().trim();
+  if (!store || !productName) return { success: false, message: "Missing fields" };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var sheet = getSheet(INVENTORY_ITEMS_SHEET);
+    var rows = getAllRows(sheet);
+    var lower = productName.toLowerCase();
+    if (rows.some(function (r) {
+      return String(r.store) === store && String(r.productName || "").trim().toLowerCase() === lower;
+    })) {
+      return { success: false, code: "DUPLICATE", message: "Item already exists" };
+    }
+    var data = {
+      id: uuid(),
+      store: store,
+      category: (body.category || "other").toString(),
+      productName: productName,
+      unit: (body.unit || "").toString(),
+      lastUnitPrice: _toNum(body.lastUnitPrice),
+      lastVendor: (body.lastVendor || "").toString(),
+      archived: "",
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    };
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
+    sheet.appendRow(row);
+    return { success: true, id: data.id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteInventoryItem(body) {
+  return _deleteFromSheet(INVENTORY_ITEMS_SHEET, (body.id || "").toString());
+}
+
+// Internal: ensure an inventory item exists for (store, productName).
+// Updates lastUnitPrice / lastVendor / category on existing rows.
+// Called from registerPurchase. Only tracks food/drink categories.
+function _upsertInventoryItem(store, category, productName, unit, unitPrice, vendor) {
+  if (!store || !productName) return;
+  if (category !== "food" && category !== "drink") return;
+
+  var sheet = getSheet(INVENTORY_ITEMS_SHEET);
+  var rows = getAllRows(sheet);
+  var lower = String(productName).trim().toLowerCase();
+
+  var existing = null;
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i].store) === store &&
+        String(rows[i].productName || "").trim().toLowerCase() === lower) {
+      existing = rows[i];
+      break;
+    }
+  }
+
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var nowStr = nowIso();
+  if (existing) {
+    var lupCol = headers.indexOf("lastUnitPrice");
+    var lvCol = headers.indexOf("lastVendor");
+    var uaCol = headers.indexOf("updatedAt");
+    var ctgCol = headers.indexOf("category");
+    var lpdCol = headers.indexOf("lastPurchaseDate");
+    if (lupCol >= 0 && unitPrice > 0) sheet.getRange(existing._rowIndex, lupCol + 1).setValue(unitPrice);
+    if (lvCol >= 0 && vendor) sheet.getRange(existing._rowIndex, lvCol + 1).setValue(vendor);
+    if (uaCol >= 0) sheet.getRange(existing._rowIndex, uaCol + 1).setValue(nowStr);
+    if (ctgCol >= 0 && category) sheet.getRange(existing._rowIndex, ctgCol + 1).setValue(category);
+    if (lpdCol >= 0) sheet.getRange(existing._rowIndex, lpdCol + 1).setValue(nowStr);
+  } else {
+    var data = {
+      id: uuid(),
+      store: store,
+      category: category,
+      productName: productName,
+      unit: unit || "",
+      lastUnitPrice: unitPrice,
+      lastVendor: vendor || "",
+      archived: "",
+      createdAt: nowStr,
+      updatedAt: nowStr,
+      lastPurchaseDate: nowStr,
+    };
+    var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
+    sheet.appendRow(row);
+  }
+}
+
+// ----------------------------------------------------------------
+// Stocktake (棚卸): per (store, location, yearMonth, item)
+// ----------------------------------------------------------------
+function listStocktakeSummary(body) {
+  var store = (body.store || "").toString();
+  var year = parseInt(body.year, 10);
+  var month = parseInt(body.month, 10);
+  if (!store || !year || !month) return { success: false, message: "Missing fields" };
+
+  var yearMonth = year + "-" + (month < 10 ? "0" + month : "" + month);
+  var prevYM = (function () {
+    var py = year, pm = month - 1;
+    if (pm < 1) { pm = 12; py -= 1; }
+    return py + "-" + (pm < 10 ? "0" + pm : "" + pm);
+  })();
+
+  // Fetch locations for the store
+  var locRows = getAllRows(getSheet(LOCATIONS_SHEET));
+  var locations = locRows
+    .filter(function (r) { return String(r.store) === store; })
+    .sort(function (a, b) {
+      var oa = _toNum(a.sortOrder), ob = _toNum(b.sortOrder);
+      return oa - ob;
+    });
+
+  var stRows = getAllRows(getSheet(STOCKTAKES_SHEET));
+  var current = {}; // location -> { itemCount, totalAmount, lastUpdated }
+  var prevTotal = 0;
+  var currentTotal = 0;
+  var currentFoodTotal = 0;
+  var currentDrinkTotal = 0;
+  var prevFoodTotal = 0;
+  var prevDrinkTotal = 0;
+  stRows.forEach(function (r) {
+    if (String(r.store) !== store) return;
+    var ym = String(r.yearMonth || "");
+    var amt = _toNum(r.amount);
+    var cat = String(r.category || "");
+    if (ym === yearMonth) {
+      var loc = String(r.location);
+      if (!current[loc]) current[loc] = { itemCount: 0, totalAmount: 0, lastUpdated: "" };
+      current[loc].itemCount += 1;
+      current[loc].totalAmount += amt;
+      var u = String(r.updatedAt || r.createdAt || "");
+      if (u > current[loc].lastUpdated) current[loc].lastUpdated = u;
+      currentTotal += amt;
+      if (cat === "food") currentFoodTotal += amt;
+      else if (cat === "drink") currentDrinkTotal += amt;
+    } else if (ym === prevYM) {
+      prevTotal += amt;
+      if (cat === "food") prevFoodTotal += amt;
+      else if (cat === "drink") prevDrinkTotal += amt;
+    }
+  });
+
+  var summary = locations.map(function (loc) {
+    var s = current[loc.name] || { itemCount: 0, totalAmount: 0, lastUpdated: "" };
+    return {
+      locationId: loc.id,
+      name: loc.name,
+      itemCount: s.itemCount,
+      totalAmount: s.totalAmount,
+      lastUpdated: s.lastUpdated,
+    };
+  });
+
+  var completedCount = summary.filter(function (s) { return s.itemCount > 0; }).length;
+
+  return {
+    success: true,
+    yearMonth: yearMonth,
+    prevYearMonth: prevYM,
+    locationCount: locations.length,
+    completedCount: completedCount,
+    currentTotal: currentTotal,
+    currentFoodTotal: currentFoodTotal,
+    currentDrinkTotal: currentDrinkTotal,
+    prevTotal: prevTotal,
+    prevFoodTotal: prevFoodTotal,
+    prevDrinkTotal: prevDrinkTotal,
+    summary: summary,
+  };
+}
+
+function listStocktakeEntries(body) {
+  var store = (body.store || "").toString();
+  var location = (body.location || "").toString();
+  var year = parseInt(body.year, 10);
+  var month = parseInt(body.month, 10);
+  if (!store || !location || !year || !month) return { success: false, message: "Missing fields" };
+
+  var yearMonth = year + "-" + (month < 10 ? "0" + month : "" + month);
+  var rows = getAllRows(getSheet(STOCKTAKES_SHEET));
+  var filtered = rows.filter(function (r) {
+    return String(r.store) === store &&
+           String(r.location) === location &&
+           String(r.yearMonth) === yearMonth;
+  });
+  filtered.sort(function (a, b) {
+    var ca = String(a.createdAt || ""), cb = String(b.createdAt || "");
+    return ca < cb ? -1 : ca > cb ? 1 : 0;
+  });
+
+  // Build inventory lookup: productName(lower) -> lastPurchaseDate
+  var invRows = getAllRows(getSheet(INVENTORY_ITEMS_SHEET));
+  var invMap = {};
+  invRows.forEach(function (i) {
+    if (String(i.store) !== store) return;
+    var key = String(i.productName || "").trim().toLowerCase();
+    invMap[key] = String(i.lastPurchaseDate || "");
+  });
+
+  return {
+    success: true,
+    entries: filtered.map(function (r) {
+      var key = String(r.productName || "").trim().toLowerCase();
+      return {
+        id: r.id,
+        itemId: r.itemId,
+        category: r.category,
+        productName: r.productName,
+        unit: r.unit,
+        vendor: r.vendor,
+        unitPrice: _toNum(r.unitPrice),
+        quantity: _toNum(r.quantity),
+        amount: _toNum(r.amount),
+        note: r.note,
+        lastPurchaseDate: invMap[key] || "",
+      };
+    }),
+  };
+}
+
+function upsertStocktakeEntry(body) {
+  var store = (body.store || "").toString().trim();
+  var location = (body.location || "").toString().trim();
+  var year = parseInt(body.year, 10);
+  var month = parseInt(body.month, 10);
+  var productName = (body.productName || "").toString().trim();
+  if (!store || !location || !year || !month || !productName) {
+    return { success: false, message: "Missing fields" };
+  }
+  var yearMonth = year + "-" + (month < 10 ? "0" + month : "" + month);
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var sheet = getSheet(STOCKTAKES_SHEET);
+    var rows = getAllRows(sheet);
+    var itemId = (body.itemId || "").toString();
+
+    // Match by id first if provided, else by (store, location, yearMonth, productName)
+    var existing = null;
+    if (body.id) {
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].id) === String(body.id)) { existing = rows[i]; break; }
+      }
+    }
+    if (!existing) {
+      var lower = productName.toLowerCase();
+      for (var j = 0; j < rows.length; j++) {
+        if (String(rows[j].store) === store &&
+            String(rows[j].location) === location &&
+            String(rows[j].yearMonth) === yearMonth &&
+            String(rows[j].productName || "").trim().toLowerCase() === lower) {
+          existing = rows[j];
+          break;
+        }
+      }
+    }
+
+    var quantity = _toNum(body.quantity);
+    var unitPrice = _toNum(body.unitPrice);
+    var amount = quantity * unitPrice;
+
+    var data = {
+      id: existing ? existing.id : uuid(),
+      store: store,
+      location: location,
+      yearMonth: yearMonth,
+      itemId: itemId,
+      category: (body.category || "").toString(),
+      productName: productName,
+      unit: (body.unit || "").toString(),
+      vendor: (body.vendor || (existing ? existing.vendor : "") || "").toString(),
+      unitPrice: unitPrice,
+      quantity: quantity,
+      amount: amount,
+      note: (body.note || "").toString(),
+      createdAt: existing ? existing.createdAt : nowIso(),
+      updatedAt: nowIso(),
+    };
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
+    if (existing) {
+      sheet.getRange(existing._rowIndex, 1, 1, row.length).setValues([row]);
+    } else {
+      sheet.appendRow(row);
+    }
+    return { success: true, id: data.id, amount: amount };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteStocktakeEntry(body) {
+  return _deleteFromSheet(STOCKTAKES_SHEET, (body.id || "").toString());
+}
+
+// Copy all entries from previous month into current month with quantity=0
+// (only for entries not already present in the current month).
+// ----------------------------------------------------------------
+// Spreadsheet maintenance: format / cleanup sheets
+//
+// 使い方:
+//   1. Apps Script エディタで関数 `formatAllSheets` を選んで実行 する
+//      (or) スプレッドシートを開き直すと「⚙ システム」メニューが出るので
+//           「全シートを整形」を選ぶ
+//   2. 各シートに対して以下を適用:
+//        - 不足列を自動追加 (既存データは保持)
+//        - 全セルにテキスト書式 (@) を適用
+//        - ヘッダー行: 太字 + 濃いグレー背景 + 白文字 + 行高 32px
+//        - 1 行目をフリーズ
+//        - 列幅を内容にあわせ自動調整 (90〜260px の範囲内)
+// ----------------------------------------------------------------
+var SHEET_SCHEMAS = {
+  Users:          USER_COLUMNS,
+  Attendance:     ["id", "userId", "type", "timestamp", "date"],
+  Shifts:         ["id", "userId", "userName", "date", "startTime", "endTime", "note", "createdAt"],
+  ShiftPatterns:  ["id", "name", "startTime", "endTime", "color"],
+  Purchases:      PURCHASE_COLUMNS,
+  PettyCash:      PETTY_COLUMNS,
+  Stores:         ["id", "name", "address", "phone", "note", "createdAt"],
+  Vendors:        ["id", "name", "taxCode", "address", "phone", "note", "createdAt"],
+  DailySales:     ["id", "store", "date", "foodSales", "drinkSales", "otherSales", "customers", "note", "createdAt"],
+  MonthlyTargets: ["id", "store", "yearMonth", "foodSalesTarget", "drinkSalesTarget", "otherSalesTarget",
+                   "foodCostRatioTarget", "drinkCostRatioTarget", "laborCostRatioTarget",
+                   "monthlyLaborCost", "note", "createdAt"],
+  Locations:      ["id", "store", "name", "sortOrder", "createdAt"],
+  InventoryItems: INVENTORY_ITEMS_COLUMNS,
+  Stocktakes:     STOCKTAKE_COLUMNS,
+};
+
+// Adds a custom menu when the spreadsheet is opened.
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu("⚙ システム")
+      .addItem("📋 全シートを整形", "formatAllSheets")
+      .addItem("🔧 全シートを作成 (未作成のみ)", "initAllSheets")
+      .addToUi();
+  } catch (e) { /* not a UI context — running from web app */ }
+}
+
+// Manually creates any missing sheets without touching existing data.
+function initAllSheets() {
+  var created = 0;
+  Object.keys(SHEET_SCHEMAS).forEach(function (name) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var existed = ss.getSheetByName(name);
+    getSheet(name);
+    if (!existed) created += 1;
+  });
+  try {
+    SpreadsheetApp.getUi().alert("シート作成完了: " + created + " シートを新規作成しました。");
+  } catch (e) {}
+  return { success: true, created: created };
+}
+
+// Formats every known sheet: auto-migrate columns, header style,
+// text format, freeze, auto-resize.
+function formatAllSheets() {
+  var names = Object.keys(SHEET_SCHEMAS);
+  names.forEach(function (name) {
+    var sheet = getSheet(name); // ensures existence + column migrations where applicable
+    var schema = SHEET_SCHEMAS[name];
+    _ensureSchemaColumns(sheet, schema);
+    _formatSheet(sheet, schema.length);
+  });
+  try {
+    SpreadsheetApp.getUi().alert("シート整形が完了しました (" + names.length + " シート)");
+  } catch (e) {}
+  return { success: true, count: names.length };
+}
+
+// Ensures every column in `schema` exists on the sheet (appending any missing
+// to the right). Existing data and column order are preserved.
+function _ensureSchemaColumns(sheet, schema) {
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < 1) {
+    sheet.getRange(1, 1, 1, schema.length).setValues([schema]);
+    return;
+  }
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  for (var i = 0; i < schema.length; i++) {
+    if (headers.indexOf(schema[i]) !== -1) continue;
+    var newColIdx = sheet.getLastColumn() + 1;
+    sheet.getRange(1, newColIdx).setValue(schema[i]);
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
+}
+
+function _formatSheet(sheet, schemaLen) {
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return;
+
+  // 1. Apply text format to all cells (prevents auto-conversion of
+  //    "22:00" / "2026-05-01" / "06:00" into Date objects).
+  sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).setNumberFormat("@");
+
+  // 2. Header row styling
+  var headerRange = sheet.getRange(1, 1, 1, lastCol);
+  headerRange.setFontWeight("bold");
+  headerRange.setBackground("#1f2937"); // dark slate
+  headerRange.setFontColor("#ffffff");
+  headerRange.setHorizontalAlignment("left");
+  headerRange.setVerticalAlignment("middle");
+  headerRange.setFontSize(11);
+  sheet.setRowHeight(1, 32);
+
+  // 3. Freeze the header row
+  sheet.setFrozenRows(1);
+
+  // 4. Auto-resize columns with min / max clamps so things stay readable
+  for (var i = 1; i <= lastCol; i++) {
+    sheet.autoResizeColumn(i);
+    var w = sheet.getColumnWidth(i);
+    if (w < 90) sheet.setColumnWidth(i, 90);
+    else if (w > 260) sheet.setColumnWidth(i, 260);
+  }
+
+  // 5. Soft border under header to separate it visually from data rows
+  headerRange.setBorder(false, false, true, false, false, false,
+    "#9ca3af", SpreadsheetApp.BorderStyle.SOLID);
+}
+
+function copyStocktakeFromPrevMonth(body) {
+  var store = (body.store || "").toString();
+  var location = (body.location || "").toString();
+  var year = parseInt(body.year, 10);
+  var month = parseInt(body.month, 10);
+  if (!store || !location || !year || !month) return { success: false, message: "Missing fields" };
+
+  var yearMonth = year + "-" + (month < 10 ? "0" + month : "" + month);
+  var prevY = year, prevM = month - 1;
+  if (prevM < 1) { prevM = 12; prevY -= 1; }
+  var prevYM = prevY + "-" + (prevM < 10 ? "0" + prevM : "" + prevM);
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var sheet = getSheet(STOCKTAKES_SHEET);
+    var rows = getAllRows(sheet);
+    var prevEntries = rows.filter(function (r) {
+      return String(r.store) === store &&
+             String(r.location) === location &&
+             String(r.yearMonth) === prevYM;
+    });
+    if (!prevEntries.length) return { success: true, copied: 0 };
+
+    // Existing names in current month — skip duplicates
+    var existing = {};
+    rows.forEach(function (r) {
+      if (String(r.store) === store &&
+          String(r.location) === location &&
+          String(r.yearMonth) === yearMonth) {
+        existing[String(r.productName || "").trim().toLowerCase()] = true;
+      }
+    });
+
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var copied = 0;
+    prevEntries.forEach(function (e) {
+      var key = String(e.productName || "").trim().toLowerCase();
+      if (existing[key]) return;
+      var data = {
+        id: uuid(),
+        store: store,
+        location: location,
+        yearMonth: yearMonth,
+        itemId: e.itemId || "",
+        category: e.category || "",
+        productName: e.productName,
+        unit: e.unit || "",
+        vendor: e.vendor || "",
+        unitPrice: _toNum(e.unitPrice),
+        quantity: 0,
+        amount: 0,
+        note: "",
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+      var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
+      sheet.appendRow(row);
+      copied += 1;
+    });
+    return { success: true, copied: copied };
+  } finally {
+    lock.releaseLock();
   }
 }

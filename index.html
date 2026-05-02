@@ -32,23 +32,47 @@
         <button type="button" id="drawerClose" class="drawer-close" aria-label="Close">&times;</button>
       </div>
       <button type="button" class="drawer-item" data-target="dashboard">
-        <span class="drawer-icon">🕐</span>
+        <span class="drawer-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <polyline points="12 7 12 12 15 14"/>
+          </svg>
+        </span>
         <span data-i18n="menuAttendance">Hệ thống chấm công</span>
       </button>
-      <button type="button" class="drawer-item" data-target="register">
-        <span class="drawer-icon">👤</span>
-        <span data-i18n="menuRegister">Đăng ký người dùng</span>
-      </button>
       <button type="button" class="drawer-item" data-target="transaction">
-        <span class="drawer-icon">📒</span>
+        <span class="drawer-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+            <polyline points="14 3 14 9 20 9"/>
+            <line x1="9" y1="13" x2="15" y2="13"/>
+            <line x1="9" y1="17" x2="13" y2="17"/>
+          </svg>
+        </span>
         <span data-i18n="menuTransaction">Đăng ký giao dịch</span>
       </button>
       <button type="button" class="drawer-item" data-target="storeDashboard">
-        <span class="drawer-icon">📊</span>
+        <span class="drawer-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="20" x2="21" y2="20"/>
+            <line x1="7" y1="20" x2="7" y2="14"/>
+            <line x1="12" y1="20" x2="12" y2="8"/>
+            <line x1="17" y1="20" x2="17" y2="11"/>
+          </svg>
+        </span>
         <span data-i18n="menuDashboard">Bảng điều khiển</span>
       </button>
       <button type="button" class="drawer-item" data-target="master">
-        <span class="drawer-icon">🏢</span>
+        <span class="drawer-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="3" width="16" height="18" rx="1"/>
+            <line x1="9" y1="8" x2="11" y2="8"/>
+            <line x1="13" y1="8" x2="15" y2="8"/>
+            <line x1="9" y1="12" x2="11" y2="12"/>
+            <line x1="13" y1="12" x2="15" y2="12"/>
+            <rect x="10" y="16" width="4" height="5"/>
+          </svg>
+        </span>
         <span data-i18n="menuMaster">Dữ liệu chính</span>
       </button>
     </nav>
@@ -250,12 +274,19 @@
     <!-- Dashboard screen -->
     <section id="dashboardKpiScreen" class="screen">
       <div class="card">
+        <div class="dash-info-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span data-i18n="dashInfoBanner">Doanh thu bao gồm POS外売上 + chi phí nhân công bao gồm その他人件費. Số tiền nhập từ giao dịch quỹ tiền mặt sẽ được phản ánh tự động.</span>
+        </div>
+
         <h2 data-i18n="dashTitle">Bảng điều khiển cửa hàng</h2>
 
         <div class="dash-toolbar">
-          <select id="dashStoreFilter" class="tx-input">
-            <option value="" data-i18n="dashSelectStore">-- Chọn cửa hàng --</option>
-          </select>
+          <select id="dashStoreFilter" class="tx-input"></select>
           <div class="dash-month-nav">
             <button type="button" id="dashPrevMonth" class="btn btn-ghost month-btn">«</button>
             <input type="month" id="dashMonth" class="tx-input dash-month-input" />
@@ -285,6 +316,7 @@
         <nav class="tab-bar">
           <button class="tab-btn active" data-master-tab="store" data-i18n="masterTabStore">Cửa hàng</button>
           <button class="tab-btn" data-master-tab="vendor" data-i18n="masterTabVendor">Nhà cung cấp</button>
+          <button class="tab-btn" data-master-tab="user" data-i18n="masterTabUser">Nhân viên</button>
         </nav>
 
         <!-- Store master tab -->
@@ -302,6 +334,14 @@
           </div>
           <div id="vendorMasterList" class="tx-list"></div>
         </div>
+
+        <!-- User master tab -->
+        <div id="master-tab-user" class="master-tab-panel">
+          <div class="master-toolbar">
+            <button type="button" id="newUserBtn" class="btn btn-primary" data-i18n="newUserBtn">+ Đăng ký nhân viên</button>
+          </div>
+          <div id="userMasterList" class="tx-list"></div>
+        </div>
       </div>
     </section>
 
@@ -313,14 +353,13 @@
         <nav class="tab-bar">
           <button class="tab-btn active" data-tx-tab="purchase" data-i18n="txTabPurchase">Mua hàng</button>
           <button class="tab-btn" data-tx-tab="petty" data-i18n="txTabPetty">Quỹ tiền mặt</button>
+          <button class="tab-btn" data-tx-tab="stocktake" data-i18n="txTabStocktake">Kiểm kê</button>
         </nav>
 
         <!-- Purchase tab -->
         <div id="tx-tab-purchase" class="tx-tab-panel active">
           <div class="tx-toolbar">
-            <select id="purchaseStoreFilter" class="tx-input">
-              <option value="" data-i18n="storeAll">-- Tất cả cửa hàng --</option>
-            </select>
+            <select id="purchaseStoreFilter" class="tx-input"></select>
             <div class="tx-date-range">
               <input type="date" id="purchaseDateFrom" class="tx-input" />
               <span class="tx-arrow">→</span>
@@ -338,9 +377,7 @@
             💡 Giao dịch quỹ tiền mặt được phân loại theo khoản mục / khoản mục phụ.
           </div>
           <div class="tx-toolbar">
-            <select id="pettyStoreFilter" class="tx-input">
-              <option value="" data-i18n="storeAll">-- Tất cả cửa hàng --</option>
-            </select>
+            <select id="pettyStoreFilter" class="tx-input"></select>
             <input type="month" id="pettyMonth" class="tx-input" />
             <button type="button" id="newPettyBtn" class="btn btn-primary tx-new-btn" data-i18n="newEntry">+ Đăng ký mới</button>
           </div>
@@ -352,6 +389,84 @@
             &nbsp;/&nbsp;
             <span data-i18n="pettyTotalOut">Tổng chi</span>:
             <span id="pettyTotalOut" class="petty-total out">0 đ</span>
+          </div>
+        </div>
+
+        <!-- Stocktake tab -->
+        <div id="tx-tab-stocktake" class="tx-tab-panel">
+          <!-- VIEW A: Location list -->
+          <div id="stocktakeListView">
+            <div class="tx-toolbar">
+              <select id="stocktakeStoreFilter" class="tx-input"></select>
+              <input type="month" id="stocktakeMonth" class="tx-input" />
+            </div>
+
+            <div class="stk-summary-bar">
+              <div class="stk-progress-row">
+                <span data-i18n="stkProgress">Tiến độ kiểm kê</span>
+                <span id="stkProgressLabel">0/0</span>
+              </div>
+              <div class="dash-progress">
+                <div id="stkProgressBar" class="dash-progress-bar" style="width:0%"></div>
+              </div>
+              <div class="stk-totals-table">
+                <div class="stk-totals-thead">
+                  <div></div>
+                  <div data-i18n="stkCurrentTotal">Tháng này</div>
+                  <div data-i18n="stkPrevTotal">Tháng trước</div>
+                  <div data-i18n="stkDiff">Chênh lệch</div>
+                </div>
+                <div class="stk-totals-trow">
+                  <div class="stk-totals-rowlabel" data-i18n="dashFood">Đồ ăn</div>
+                  <div id="stkFoodCurrent" class="stk-totals-cell">0 đ</div>
+                  <div id="stkFoodPrev" class="stk-totals-cell muted">0 đ</div>
+                  <div id="stkFoodDiff" class="stk-totals-cell">0 đ</div>
+                </div>
+                <div class="stk-totals-trow">
+                  <div class="stk-totals-rowlabel" data-i18n="dashDrink">Đồ uống</div>
+                  <div id="stkDrinkCurrent" class="stk-totals-cell">0 đ</div>
+                  <div id="stkDrinkPrev" class="stk-totals-cell muted">0 đ</div>
+                  <div id="stkDrinkDiff" class="stk-totals-cell">0 đ</div>
+                </div>
+                <div class="stk-totals-trow stk-totals-trow-total">
+                  <div class="stk-totals-rowlabel" data-i18n="stkTotalRow">合計</div>
+                  <div id="stkCurrentTotal" class="stk-totals-cell">0 đ</div>
+                  <div id="stkPrevTotal" class="stk-totals-cell muted">0 đ</div>
+                  <div id="stkDiffTotal" class="stk-totals-cell">0 đ</div>
+                </div>
+              </div>
+            </div>
+
+            <div id="locationList" class="tx-list"></div>
+
+            <button type="button" id="newLocationBtn" class="btn btn-ghost stk-add-location-btn" data-i18n="newLocationBtn">+ Thêm khu vực lưu trữ</button>
+          </div>
+
+          <!-- VIEW B: Stocktake editor for one location -->
+          <div id="stocktakeEditorView" class="hidden">
+            <div class="stk-editor-header">
+              <button type="button" id="stkBackBtn" class="btn-mini" aria-label="Back">← <span data-i18n="back">Quay lại</span></button>
+              <div class="stk-editor-title">
+                <div id="stkEditorLocation" class="stk-editor-location-name">--</div>
+                <div id="stkEditorMonth" class="stk-editor-month muted">----/--</div>
+              </div>
+            </div>
+
+            <div class="stk-editor-toolbar">
+              <button type="button" id="stkAddItemBtn" class="btn btn-primary" data-i18n="stkAddItem">+ Thêm sản phẩm</button>
+              <button type="button" id="stkCopyPrevBtn" class="btn btn-ghost btn-mini-action" data-i18n="stkCopyPrev">Sao chép từ tháng trước</button>
+            </div>
+
+            <div class="stk-editor-progress muted">
+              <span id="stkEditorProgress">0 / 0</span> <span data-i18n="stkEntered">đã nhập</span>
+            </div>
+
+            <div id="stkEntryList" class="stk-entry-list"></div>
+
+            <div class="stk-editor-summary">
+              <span data-i18n="stkSubtotal">Tổng cộng</span>
+              <strong id="stkEditorTotal">0 đ</strong>
+            </div>
           </div>
         </div>
       </div>
@@ -472,6 +587,9 @@
         <label><span data-i18n="category">Khoản mục</span><span class="required">*</span></label>
         <select id="cCategory" required>
           <option value=""></option>
+          <option value="purchaseFood" data-i18n="catPurchaseFood">Mua hàng (đồ ăn)</option>
+          <option value="purchaseDrink" data-i18n="catPurchaseDrink">Mua hàng (đồ uống)</option>
+          <option value="reserveDeposit" data-i18n="catReserveDeposit">Nạp quỹ chuẩn bị</option>
           <option value="utilities" data-i18n="catUtilities">Điện nước</option>
           <option value="communication" data-i18n="catCommunication">Viễn thông</option>
           <option value="supplies" data-i18n="catOfficeSupplies">Văn phòng phẩm</option>
@@ -717,6 +835,63 @@
         <button type="submit" class="btn btn-primary" data-i18n="saveBtn">Lưu</button>
         <button type="button" id="laborCostCancel" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Stocktake: add location modal -->
+  <div id="locationModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="locationModalClose">&times;</button>
+      <h3 data-i18n="locationModalTitle">Thêm khu vực lưu trữ</h3>
+      <form id="locationForm">
+        <label><span data-i18n="locationName">Tên khu vực</span><span class="required">*</span></label>
+        <input type="text" id="locName" required maxlength="40" autocomplete="off" placeholder="Ví dụ: ストッカー, ドリンク棚..." />
+        <button type="submit" class="btn btn-primary" data-i18n="saveBtn">Lưu</button>
+        <button type="button" id="locationCancel" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Stocktake: add item modal -->
+  <div id="stkAddItemModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card modal-card-wide">
+      <button type="button" class="modal-close" id="stkAddItemClose">&times;</button>
+      <h3 data-i18n="stkAddItemTitle">Thêm sản phẩm</h3>
+
+      <input type="text" id="stkItemSearch" class="tx-input" placeholder="🔍 Tìm sản phẩm..." />
+
+      <h4 class="form-section" data-i18n="stkFromInventory">Từ danh sách đã có</h4>
+      <div id="stkInventoryList" class="stk-suggestion-list"></div>
+
+      <h4 class="form-section" data-i18n="stkManualAdd">Thêm thủ công</h4>
+      <form id="stkManualForm">
+        <label><span data-i18n="productName">Tên sản phẩm</span><span class="required">*</span></label>
+        <input type="text" id="stkManName" required maxlength="80" />
+        <div class="form-row-2">
+          <div>
+            <label data-i18n="unit">Đơn vị</label>
+            <input type="text" id="stkManUnit" maxlength="10" placeholder="個 / kg / PC" />
+          </div>
+          <div>
+            <label data-i18n="category">Khoản mục</label>
+            <select id="stkManCategory">
+              <option value="food" data-i18n="catFood">Đồ ăn</option>
+              <option value="drink" data-i18n="catDrink">Đồ uống</option>
+              <option value="other" data-i18n="catOther">Khác</option>
+            </select>
+          </div>
+        </div>
+        <label data-i18n="unitPriceLabel">Đơn giá (đã có thuế)</label>
+        <div class="currency-input">
+          <input type="number" id="stkManUnitPrice" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+        <button type="submit" class="btn btn-primary" data-i18n="addItemBtn">Thêm sản phẩm</button>
+      </form>
+
+      <button type="button" id="stkAddItemCancel" class="btn btn-ghost btn-block" data-i18n="close">Đóng</button>
     </div>
   </div>
 
