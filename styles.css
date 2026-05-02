@@ -726,9 +726,6 @@ form select:focus {
  * Pattern strip (tap-and-hold workflow for shift register)
  * ============================================================ */
 .pattern-strip-row {
-  /* Grid (instead of flex) gives the first track a hard max width that
-     does not expand to fit children — required for overflow-x: auto on
-     the strip to work without leaking horizontal scroll to the page. */
   display: grid;
   grid-template-columns: minmax(0, 1fr) 48px;
   gap: 8px;
@@ -738,19 +735,27 @@ form select:focus {
   max-width: 100%;
 }
 
-.pattern-strip {
+/* Outer clip wrapper: hard-constrains width to its grid track so the
+   inner scroller cannot push the layout sideways. min-width: 0 lets
+   the grid track actually shrink below content width. */
+.pattern-strip-clip {
   min-width: 0;
   width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Inner scroller: where the horizontal scrolling actually happens. */
+.pattern-strip {
   display: flex;
   gap: 8px;
+  width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x proximity;
   padding-bottom: 4px;
   scrollbar-width: thin;
-  /* Tell the browser this element handles horizontal panning so the
-     touch is not interpreted as a page-level swipe. */
   touch-action: pan-x;
   overscroll-behavior-x: contain;
 }
