@@ -1,13 +1,33 @@
 {
-    "short_name": "勤怠システム",
-    "name": "Vietnam.pj",
-    "display": "standalone",
-    "start_url": "index.html",
-    "icons": [
-        {
-            "src": "ROBATANARU.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        }
-    ]
+  "name": "勤怠システム / Hệ thống chấm công",
+  "short_name": "勤怠",
+  "description": "Vietnam Restaurant Management System",
+  "lang": "ja",
+  "dir": "ltr",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "./index.html",
+  "scope": "./",
+  "theme_color": "#111827",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "ROBATANARU.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "ROBATANARU.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "ROBATANARU.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }

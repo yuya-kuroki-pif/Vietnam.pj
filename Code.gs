@@ -235,8 +235,22 @@ function jsonResponse(obj) {
 // ----------------------------------------------------------------
 // Sheet helpers
 // ----------------------------------------------------------------
+// Cache the active spreadsheet object — it's the same instance for the
+// whole script execution, but calling getActiveSpreadsheet() repeatedly
+// has a small but measurable cost.
+var _SS_CACHE = null;
+function _activeSS() {
+  if (!_SS_CACHE) _SS_CACHE = SpreadsheetApp.getActiveSpreadsheet();
+  return _SS_CACHE;
+}
+
+// Track sheets that have already been "prepared" (text-formatted +
+// migrations run) within this script execution. Subsequent getSheet
+// calls return the sheet immediately, skipping all the expensive setup.
+var _PREPARED = {};
+
 function getSheet(name) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = _activeSS();
   var sheet = ss.getSheetByName(name);
   var freshlyCreated = false;
   if (!sheet) {
@@ -279,11 +293,20 @@ function getSheet(name) {
       sheet.appendRow(STOCKTAKE_COLUMNS);
     }
   }
-  // Force text format BEFORE writing any time/date data so Sheets does not
-  // auto-convert "22:00" / "06:00" etc. into Date values internally.
-  if (sheet.getMaxColumns() > 0) {
+
+  // Fast path: if we've already prepared this sheet within this script
+  // execution, skip all the expensive setup below. This is the main perf
+  // optimisation — previously every getSheet() call applied
+  // setNumberFormat("@") to the entire sheet (~26,000 cells per sheet),
+  // which made every API request slow.
+  if (_PREPARED[name]) return sheet;
+
+  // For brand-new sheets, apply text format ONCE. The format persists, so
+  // subsequent reads / writes don't need to re-apply it.
+  if (freshlyCreated && sheet.getMaxColumns() > 0) {
     sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).setNumberFormat("@");
   }
+
   if (name === PATTERNS_SHEET) {
     // Insert default rows after text format is applied so the time strings
     // ("22:00" / "06:00" for the night shift) remain as plain text.
@@ -321,6 +344,8 @@ function getSheet(name) {
   if (name === INVENTORY_ITEMS_SHEET) {
     ensureColumns(sheet, INVENTORY_ITEMS_COLUMNS);
   }
+
+  _PREPARED[name] = true;
   return sheet;
 }
 

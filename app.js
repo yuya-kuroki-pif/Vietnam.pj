@@ -2,7 +2,18 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxdZjyomey7h_0syu1ohYEJBd5-LBXdMciZ8L-Df80qSHdIxNbrNvabv0E1gcAvU6xq/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwufsUNVwp_c4cwE3ykJM_DSpOadqnknXtfGM_2SYu1rIJUZEctLAU1PnjKajrYqtGA/exec";
+
+// ============================================================
+// PWA: register service worker so the app is installable on home screen
+// ============================================================
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service_worker.js").catch((err) => {
+      console.warn("Service worker registration failed:", err);
+    });
+  });
+}
 
 // ============================================================
 // i18n (Vietnamese / Japanese)

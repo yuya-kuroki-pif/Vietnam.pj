@@ -1,10 +1,27 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <link rel="manifest" href="/manifest.json">
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Hệ thống chấm công / 勤怠システム</title>
+
+  <!-- PWA: manifest, theme color, favicon -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="ROBATANARU.png">
+  <meta name="theme-color" content="#111827">
+
+  <!-- iOS Safari "Add to Home Screen" — apple-touch-icon is required for the
+       home-screen icon. iOS does not read the manifest's icons. -->
+  <link rel="apple-touch-icon" href="ROBATANARU.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="ROBATANARU.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="ROBATANARU.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="勤怠">
+
+  <!-- Older Android Chrome standalone hint -->
+  <meta name="mobile-web-app-capable" content="yes">
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
