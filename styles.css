@@ -25,6 +25,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
+  overflow-x: hidden; /* prevent any inner element from scrolling the whole page sideways */
 }
 
 .app-header {
@@ -725,16 +726,21 @@ form select:focus {
  * Pattern strip (tap-and-hold workflow for shift register)
  * ============================================================ */
 .pattern-strip-row {
-  display: flex;
-  align-items: stretch;
+  /* Grid (instead of flex) gives the first track a hard max width that
+     does not expand to fit children — required for overflow-x: auto on
+     the strip to work without leaking horizontal scroll to the page. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
   gap: 8px;
+  align-items: stretch;
   margin: 4px 0 10px;
-  min-width: 0; /* allow flex children to shrink */
+  width: 100%;
+  max-width: 100%;
 }
 
 .pattern-strip {
-  flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
   display: flex;
   gap: 8px;
   overflow-x: auto;
@@ -743,6 +749,10 @@ form select:focus {
   scroll-snap-type: x proximity;
   padding-bottom: 4px;
   scrollbar-width: thin;
+  /* Tell the browser this element handles horizontal panning so the
+     touch is not interpreted as a page-level swipe. */
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
 }
 
 .pattern-strip::-webkit-scrollbar { height: 4px; }
