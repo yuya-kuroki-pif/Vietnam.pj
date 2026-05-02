@@ -5,9 +5,9 @@
     "start_url": "index.html",
     "icons": [
         {
-            "src": "炉端成る.jpg",
+            "src": "ROBATANARU.png",
             "sizes": "192x192",
-            "type": "image/jpg"
+            "type": "image/png"
         }
     ]
 }
