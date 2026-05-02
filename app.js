@@ -589,7 +589,6 @@ function t(key) {
 
 function applyLanguage() {
   document.documentElement.lang = currentLang === "ja" ? "ja" : "vi";
-  document.title = t("appTitle");
 
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n");
@@ -1670,7 +1669,8 @@ function formatShiftDate(dateStr) {
   const weekdaysJa = ["日", "月", "火", "水", "木", "金", "土"];
   const w =
     currentLang === "ja" ? weekdaysJa[dt.getDay()] : weekdaysVi[dt.getDay()];
-  return `${dateStr} (${w})`;
+  const slashed = `${y}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
+  return `${slashed} (${w})`;
 }
 
 // ============================================================
@@ -1704,6 +1704,14 @@ function fmtVnd(n) {
 
 // Backward-compatible alias — older code paths still call fmtVndCompact.
 const fmtVndCompact = fmtVnd;
+
+// Convert ISO-style date strings ("yyyy-MM-dd" / "yyyy-MM") to slash form
+// for display ("yyyy/MM/dd" / "yyyy/MM"). Backend keeps the dash form so
+// this is purely a display helper.
+function fmtDate(s) {
+  if (!s) return "";
+  return String(s).replace(/-/g, "/");
+}
 
 let txVendors = [];
 
@@ -1931,7 +1939,7 @@ function renderPurchaseList(list) {
     row1.className = "tx-card-row1";
     const date = document.createElement("span");
     date.className = "tx-card-date";
-    date.textContent = `${p.date}  ${p.store || ""}`;
+    date.textContent = `${fmtDate(p.date)}  ${p.store || ""}`;
     const amount = document.createElement("span");
     amount.className = "tx-card-amount";
     amount.textContent = fmtVnd(incl);
@@ -2110,7 +2118,7 @@ function renderPettyList(items) {
     row1.className = "tx-card-row1";
     const date = document.createElement("span");
     date.className = "tx-card-date";
-    date.textContent = `${it.date}  ${it.store || ""}`;
+    date.textContent = `${fmtDate(it.date)}  ${it.store || ""}`;
     const amount = document.createElement("span");
     amount.className = "tx-card-amount " + (it.type === "in" ? "amount-in" : "amount-out");
     amount.textContent = (it.type === "in" ? "+" : "-") + fmtVnd(it.amount);
@@ -2750,7 +2758,7 @@ function renderDailySalesList(items) {
     row1.className = "tx-card-row1";
     const date = document.createElement("span");
     date.className = "tx-card-date";
-    date.textContent = it.date;
+    date.textContent = fmtDate(it.date);
     const amt = document.createElement("span");
     amt.className = "tx-card-amount";
     amt.textContent = fmtVndCompact(total);
@@ -3195,7 +3203,7 @@ function openStocktakeEditor(locationName) {
   document.getElementById("stocktakeListView").classList.add("hidden");
   document.getElementById("stocktakeEditorView").classList.remove("hidden");
   document.getElementById("stkEditorLocation").textContent = locationName;
-  document.getElementById("stkEditorMonth").textContent = getStkYearMonthStr();
+  document.getElementById("stkEditorMonth").textContent = fmtDate(getStkYearMonthStr());
   reloadStocktakeEntries();
 }
 

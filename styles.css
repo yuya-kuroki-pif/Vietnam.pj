@@ -895,7 +895,13 @@ form select:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  /* Respect the device safe-area so the modal-card never sits under the
+     notch / home indicator. PWA standalone mode in particular extends the
+     viewport into those zones. */
+  padding-top: calc(16px + env(safe-area-inset-top));
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  padding-left: calc(16px + env(safe-area-inset-left));
+  padding-right: calc(16px + env(safe-area-inset-right));
 }
 
 .modal.hidden { display: none; }
@@ -913,8 +919,13 @@ form select:focus {
   padding: 22px 20px 18px;
   width: 100%;
   max-width: 440px;
-  max-height: 90vh;
+  /* Subtract safe areas + the .modal padding (16+16=32) so a tall modal
+     scrolls inside the visible region instead of bleeding under the
+     notch / home indicator. */
+  max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
 
@@ -1263,6 +1274,9 @@ form select:focus {
   transition: transform 0.25s ease;
   display: flex;
   flex-direction: column;
+  /* Last menu item must clear the iPhone home indicator. */
+  padding-bottom: env(safe-area-inset-bottom);
+  overflow-y: auto;
 }
 
 .drawer:not(.hidden) .drawer-panel { transform: translateX(0); }
@@ -1349,10 +1363,12 @@ form select:focus {
  * ============================================================ */
 .tx-toolbar {
   display: grid;
+  /* Default to a single stacked column. Each toolbar item gets the full
+     width of the card so native date / month inputs always fit. The
+     horizontal 3-column layout only kicks in on big screens (≥900px). */
+  grid-template-columns: 1fr;
   gap: 8px;
   margin-bottom: 12px;
-  /* Let inner items (selects, date inputs) shrink below their intrinsic
-     min-width — otherwise native <input type="date"> overflows the card. */
   min-width: 0;
   max-width: 100%;
 }
@@ -1384,13 +1400,16 @@ form select:focus {
   min-width: 0;
 }
 
-/* On narrow phones the "→" arrow + 2 dates side-by-side don't fit.
-   Drop the arrow and let the dates split the row 50/50. */
-@media (max-width: 480px) {
+/* On phones, native date inputs still overflow when forced into half-width
+   columns. Stack the two dates vertically so each gets the full card width. */
+@media (max-width: 600px) {
   .tx-date-range {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
   .tx-date-range .tx-arrow { display: none; }
+}
+@media (max-width: 480px) {
   .tx-input { padding: 10px 10px; font-size: 13px; }
 }
 
@@ -1630,14 +1649,18 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-@media (min-width: 600px) {
+@media (min-width: 900px) {
   .tx-toolbar {
-    /* Store filter gets a bit more space than date range / month picker.
+    /* Store filter gets more space than date range / month picker.
        minmax(0, ...) lets the columns shrink below content size if needed
        so long store names still fit / truncate inside the dropdown. */
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
     align-items: center;
   }
+  .tx-date-range {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .tx-date-range .tx-arrow { display: inline; }
   .tx-new-btn { width: auto; padding-left: 16px; padding-right: 16px; }
 }
 
