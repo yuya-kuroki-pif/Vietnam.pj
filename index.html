@@ -38,6 +38,18 @@
         <span class="drawer-icon">👤</span>
         <span data-i18n="menuRegister">Đăng ký người dùng</span>
       </button>
+      <button type="button" class="drawer-item" data-target="transaction">
+        <span class="drawer-icon">📒</span>
+        <span data-i18n="menuTransaction">Đăng ký giao dịch</span>
+      </button>
+      <button type="button" class="drawer-item" data-target="storeDashboard">
+        <span class="drawer-icon">📊</span>
+        <span data-i18n="menuDashboard">Bảng điều khiển</span>
+      </button>
+      <button type="button" class="drawer-item" data-target="master">
+        <span class="drawer-icon">🏢</span>
+        <span data-i18n="menuMaster">Dữ liệu chính</span>
+      </button>
     </nav>
   </aside>
 
@@ -196,6 +208,22 @@
           <label data-i18n="hireDate">Ngày vào làm</label>
           <input type="date" id="regHireDate" />
 
+          <div class="form-row-2">
+            <div>
+              <label data-i18n="userStore">Cửa hàng</label>
+              <select id="regStore">
+                <option value=""></option>
+              </select>
+            </div>
+            <div>
+              <label data-i18n="hourlyRate">Lương theo giờ</label>
+              <div class="currency-input">
+                <input type="number" id="regHourlyRate" min="0" step="1000" inputmode="numeric" />
+                <span class="currency-suffix">đ/h</span>
+              </div>
+            </div>
+          </div>
+
           <h4 class="form-section" data-i18n="sectionBank">Tài khoản ngân hàng (Việt Nam)</h4>
 
           <label data-i18n="bankName">Tên ngân hàng</label>
@@ -217,7 +245,482 @@
         </form>
       </div>
     </section>
+
+    <!-- Dashboard screen -->
+    <section id="dashboardKpiScreen" class="screen">
+      <div class="card">
+        <h2 data-i18n="dashTitle">Bảng điều khiển cửa hàng</h2>
+
+        <div class="dash-toolbar">
+          <select id="dashStoreFilter" class="tx-input">
+            <option value="" data-i18n="dashSelectStore">-- Chọn cửa hàng --</option>
+          </select>
+          <div class="dash-month-nav">
+            <button type="button" id="dashPrevMonth" class="btn btn-ghost month-btn">«</button>
+            <input type="month" id="dashMonth" class="tx-input dash-month-input" />
+            <button type="button" id="dashNextMonth" class="btn btn-ghost month-btn">»</button>
+          </div>
+        </div>
+
+        <div class="dash-actions">
+          <button type="button" id="newDailySalesBtn" class="btn btn-primary" data-i18n="enterDailySales">+ Doanh số hằng ngày</button>
+          <button type="button" id="newMonthlyTargetBtn" class="btn btn-primary" data-i18n="enterMonthlyTarget">+ Mục tiêu tháng</button>
+        </div>
+
+        <div id="dashContent" class="dash-content">
+          <div class="dash-empty" data-i18n="dashSelectFirst">Vui lòng chọn cửa hàng và tháng.</div>
+        </div>
+
+        <h3 class="dash-section-title" data-i18n="dailySalesList">Lịch sử doanh số hằng ngày</h3>
+        <div id="dailySalesList" class="tx-list"></div>
+      </div>
+    </section>
+
+    <!-- Master data screen (stores + vendors) -->
+    <section id="masterScreen" class="screen">
+      <div class="card">
+        <h2 data-i18n="masterTitle">Dữ liệu chính</h2>
+
+        <nav class="tab-bar">
+          <button class="tab-btn active" data-master-tab="store" data-i18n="masterTabStore">Cửa hàng</button>
+          <button class="tab-btn" data-master-tab="vendor" data-i18n="masterTabVendor">Nhà cung cấp</button>
+        </nav>
+
+        <!-- Store master tab -->
+        <div id="master-tab-store" class="master-tab-panel active">
+          <div class="master-toolbar">
+            <button type="button" id="newStoreBtn" class="btn btn-primary" data-i18n="newStoreBtn">+ Đăng ký cửa hàng</button>
+          </div>
+          <div id="storeMasterList" class="tx-list"></div>
+        </div>
+
+        <!-- Vendor master tab -->
+        <div id="master-tab-vendor" class="master-tab-panel">
+          <div class="master-toolbar">
+            <button type="button" id="newVendorBtn" class="btn btn-primary" data-i18n="newVendorBtn">+ Đăng ký nhà cung cấp</button>
+          </div>
+          <div id="vendorMasterList" class="tx-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transaction screen (purchases + petty cash) -->
+    <section id="transactionScreen" class="screen">
+      <div class="card">
+        <h2 data-i18n="txTitle">Đăng ký giao dịch</h2>
+
+        <nav class="tab-bar">
+          <button class="tab-btn active" data-tx-tab="purchase" data-i18n="txTabPurchase">Mua hàng</button>
+          <button class="tab-btn" data-tx-tab="petty" data-i18n="txTabPetty">Quỹ tiền mặt</button>
+        </nav>
+
+        <!-- Purchase tab -->
+        <div id="tx-tab-purchase" class="tx-tab-panel active">
+          <div class="tx-toolbar">
+            <select id="purchaseStoreFilter" class="tx-input">
+              <option value="" data-i18n="storeAll">-- Tất cả cửa hàng --</option>
+            </select>
+            <div class="tx-date-range">
+              <input type="date" id="purchaseDateFrom" class="tx-input" />
+              <span class="tx-arrow">→</span>
+              <input type="date" id="purchaseDateTo" class="tx-input" />
+            </div>
+            <button type="button" id="newPurchaseBtn" class="btn btn-primary tx-new-btn" data-i18n="newEntry">+ Đăng ký mới</button>
+          </div>
+
+          <div id="purchaseList" class="tx-list"></div>
+        </div>
+
+        <!-- Petty cash tab -->
+        <div id="tx-tab-petty" class="tx-tab-panel">
+          <div class="petty-banner" data-i18n="pettyBanner">
+            💡 Giao dịch quỹ tiền mặt được phân loại theo khoản mục / khoản mục phụ.
+          </div>
+          <div class="tx-toolbar">
+            <select id="pettyStoreFilter" class="tx-input">
+              <option value="" data-i18n="storeAll">-- Tất cả cửa hàng --</option>
+            </select>
+            <input type="month" id="pettyMonth" class="tx-input" />
+            <button type="button" id="newPettyBtn" class="btn btn-primary tx-new-btn" data-i18n="newEntry">+ Đăng ký mới</button>
+          </div>
+
+          <div id="pettyList" class="tx-list"></div>
+          <div class="petty-summary">
+            <span data-i18n="pettyTotalIn">Tổng thu</span>:
+            <span id="pettyTotalIn" class="petty-total in">0 đ</span>
+            &nbsp;/&nbsp;
+            <span data-i18n="pettyTotalOut">Tổng chi</span>:
+            <span id="pettyTotalOut" class="petty-total out">0 đ</span>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <!-- Purchase modal -->
+  <div id="purchaseModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card modal-card-wide">
+      <button type="button" class="modal-close" id="purchaseClose">&times;</button>
+      <h3 data-i18n="purchaseModalTitle">Đăng ký mua hàng</h3>
+      <form id="purchaseForm">
+        <div class="form-row-2">
+          <div>
+            <label><span data-i18n="purchaseDate">Ngày mua</span><span class="required">*</span></label>
+            <input type="date" id="pDate" required />
+          </div>
+          <div>
+            <label><span data-i18n="store">Cửa hàng</span><span class="required">*</span></label>
+            <select id="pStore" required>
+              <option value="" data-i18n="selectStore">-- Chọn cửa hàng --</option>
+            </select>
+          </div>
+        </div>
+
+        <label><span data-i18n="vendor">Nhà cung cấp</span></label>
+        <select id="pVendor">
+          <option value="" data-i18n="selectVendor">-- Chọn nhà cung cấp --</option>
+        </select>
+
+        <label><span data-i18n="productName">Tên sản phẩm</span><span class="required">*</span></label>
+        <input type="text" id="pProductName" required maxlength="80" />
+
+        <label data-i18n="category">Khoản mục</label>
+        <select id="pCategory">
+          <option value=""></option>
+          <option value="food" data-i18n="catFood">Đồ ăn</option>
+          <option value="drink" data-i18n="catDrink">Đồ uống</option>
+          <option value="other" data-i18n="catOther">Khác</option>
+        </select>
+
+        <div class="form-row-3">
+          <div>
+            <label data-i18n="unitPrice">Đơn giá (chưa thuế)</label>
+            <div class="currency-input">
+              <input type="number" id="pUnitPrice" min="0" step="1" inputmode="numeric" />
+              <span class="currency-suffix">đ</span>
+            </div>
+          </div>
+          <div>
+            <label data-i18n="quantity">Số lượng</label>
+            <input type="number" id="pQuantity" min="0" step="1" inputmode="numeric" />
+          </div>
+          <div>
+            <label data-i18n="taxRate">Thuế suất</label>
+            <select id="pTaxRate">
+              <option value="0">0%</option>
+              <option value="5">5%</option>
+              <option value="8" selected>8%</option>
+              <option value="10">10%</option>
+            </select>
+          </div>
+        </div>
+
+        <label data-i18n="paymentMethod">Phương thức thanh toán</label>
+        <select id="pPaymentMethod">
+          <option value=""></option>
+          <option value="cash" data-i18n="payCash">Tiền mặt</option>
+          <option value="transfer" data-i18n="payTransfer">Chuyển khoản</option>
+          <option value="card" data-i18n="payCard">Thẻ tín dụng/ghi nợ</option>
+          <option value="momo" data-i18n="payMomo">Momo</option>
+          <option value="zalopay" data-i18n="payZaloPay">ZaloPay</option>
+          <option value="vnpay" data-i18n="payVnPay">VNPay</option>
+          <option value="other" data-i18n="payOther">Khác</option>
+        </select>
+
+        <div class="tx-summary-box">
+          <div><span data-i18n="amountExclTax">Tiền chưa thuế</span>: <span id="pAmountExcl">0 đ</span></div>
+          <div><span data-i18n="amountInclTax">Tiền có thuế</span>: <strong id="pAmountIncl">0 đ</strong></div>
+        </div>
+
+        <label data-i18n="note">Ghi chú</label>
+        <input type="text" id="pNote" maxlength="200" />
+
+        <button type="submit" class="btn btn-primary" data-i18n="registerBtn">Đăng ký</button>
+        <button type="button" class="btn btn-ghost btn-block" data-i18n="cancel" id="purchaseCancel">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Petty cash modal -->
+  <div id="pettyModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="pettyClose">&times;</button>
+      <h3 data-i18n="pettyModalTitle">Đăng ký giao dịch quỹ tiền mặt</h3>
+      <form id="pettyForm">
+        <div class="form-row-2">
+          <div>
+            <label><span data-i18n="store">Cửa hàng</span><span class="required">*</span></label>
+            <select id="cStore" required>
+              <option value="" data-i18n="selectStore">-- Chọn cửa hàng --</option>
+            </select>
+          </div>
+          <div>
+            <label><span data-i18n="date">Ngày</span><span class="required">*</span></label>
+            <input type="date" id="cDate" required />
+          </div>
+        </div>
+
+        <label><span data-i18n="txType">Loại</span><span class="required">*</span></label>
+        <div class="type-toggle">
+          <button type="button" class="type-toggle-btn active" data-type="out" data-i18n="typeOut">Chi (出金)</button>
+          <button type="button" class="type-toggle-btn" data-type="in" data-i18n="typeIn">Thu (入金)</button>
+        </div>
+
+        <label><span data-i18n="category">Khoản mục</span><span class="required">*</span></label>
+        <select id="cCategory" required>
+          <option value=""></option>
+          <option value="utilities" data-i18n="catUtilities">Điện nước</option>
+          <option value="communication" data-i18n="catCommunication">Viễn thông</option>
+          <option value="supplies" data-i18n="catOfficeSupplies">Văn phòng phẩm</option>
+          <option value="travel" data-i18n="catTravel">Đi lại</option>
+          <option value="entertainment" data-i18n="catEntertainment">Tiếp khách</option>
+          <option value="bankFee" data-i18n="catBankFee">Phí ngân hàng</option>
+          <option value="other" data-i18n="catOther">Khác</option>
+        </select>
+
+        <label data-i18n="subCategory">Khoản mục phụ</label>
+        <input type="text" id="cSubCategory" maxlength="60" />
+
+        <label><span data-i18n="amountInclTax">Số tiền (có thuế)</span><span class="required">*</span></label>
+        <div class="currency-input">
+          <input type="number" id="cAmount" min="0" step="1" inputmode="numeric" required />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="taxRate">Thuế suất</label>
+        <select id="cTaxRate">
+          <option value="0">0%</option>
+          <option value="5">5%</option>
+          <option value="8" selected>8%</option>
+          <option value="10">10%</option>
+        </select>
+
+        <label data-i18n="vendor">Nhà cung cấp</label>
+        <select id="cVendor">
+          <option value="" data-i18n="selectVendor">-- Chọn nhà cung cấp --</option>
+        </select>
+
+        <label data-i18n="taxCode">Mã số thuế (MST)</label>
+        <input type="text" id="cTaxCode" maxlength="20" placeholder="0123456789" />
+
+        <label data-i18n="note">Ghi chú</label>
+        <textarea id="cNote" maxlength="300" rows="2"></textarea>
+
+        <button type="submit" class="btn btn-primary" data-i18n="registerBtn">Đăng ký</button>
+        <button type="button" class="btn btn-ghost btn-block" data-i18n="cancel" id="pettyCancel">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Store master modal -->
+  <div id="storeModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="storeModalClose">&times;</button>
+      <h3 data-i18n="storeModalTitle">Đăng ký cửa hàng</h3>
+      <form id="storeForm">
+        <label><span data-i18n="storeName">Tên cửa hàng</span><span class="required">*</span></label>
+        <input type="text" id="sName" required maxlength="60" autocomplete="off" />
+
+        <label data-i18n="address">Địa chỉ</label>
+        <input type="text" id="sAddress" maxlength="200" autocomplete="off" />
+
+        <label data-i18n="phone">Số điện thoại</label>
+        <input type="tel" id="sPhone" maxlength="20" autocomplete="off" />
+
+        <label data-i18n="note">Ghi chú</label>
+        <input type="text" id="sNote" maxlength="200" autocomplete="off" />
+
+        <button type="submit" class="btn btn-primary" data-i18n="registerBtn">Đăng ký</button>
+        <button type="button" id="storeCancel" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Vendor master modal -->
+  <div id="vendorModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="vendorModalClose">&times;</button>
+      <h3 data-i18n="vendorModalTitle">Đăng ký nhà cung cấp</h3>
+      <form id="vendorForm">
+        <label><span data-i18n="vendorName">Tên nhà cung cấp</span><span class="required">*</span></label>
+        <input type="text" id="vName" required maxlength="80" autocomplete="off" />
+
+        <label data-i18n="taxCode">Mã số thuế (MST)</label>
+        <input type="text" id="vTaxCode" maxlength="20" autocomplete="off" placeholder="0123456789" />
+
+        <label data-i18n="address">Địa chỉ</label>
+        <input type="text" id="vAddress" maxlength="200" autocomplete="off" />
+
+        <label data-i18n="phone">Số điện thoại</label>
+        <input type="tel" id="vPhone" maxlength="20" autocomplete="off" />
+
+        <label data-i18n="note">Ghi chú</label>
+        <input type="text" id="vNote" maxlength="200" autocomplete="off" />
+
+        <button type="submit" class="btn btn-primary" data-i18n="registerBtn">Đăng ký</button>
+        <button type="button" id="vendorCancel" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Daily sales modal -->
+  <div id="dailySalesModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="dailySalesClose">&times;</button>
+      <h3 data-i18n="dailySalesModalTitle">Nhập doanh số hằng ngày</h3>
+      <form id="dailySalesForm">
+        <div class="form-row-2">
+          <div>
+            <label><span data-i18n="store">Cửa hàng</span><span class="required">*</span></label>
+            <select id="dsStore" required>
+              <option value="" data-i18n="selectStore">-- Chọn --</option>
+            </select>
+          </div>
+          <div>
+            <label><span data-i18n="date">Ngày</span><span class="required">*</span></label>
+            <input type="date" id="dsDate" required />
+          </div>
+        </div>
+
+        <label data-i18n="foodSales">Doanh số đồ ăn</label>
+        <div class="currency-input">
+          <input type="number" id="dsFoodSales" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="drinkSales">Doanh số đồ uống</label>
+        <div class="currency-input">
+          <input type="number" id="dsDrinkSales" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="otherSales">Doanh số khác (POS外)</label>
+        <div class="currency-input">
+          <input type="number" id="dsOtherSales" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="customers">Số khách</label>
+        <input type="number" id="dsCustomers" min="0" step="1" inputmode="numeric" />
+
+        <label data-i18n="note">Ghi chú</label>
+        <input type="text" id="dsNote" maxlength="200" />
+
+        <div class="dash-hint muted" data-i18n="upsertHint">
+          ※ Cùng cửa hàng + ngày sẽ ghi đè dữ liệu cũ
+        </div>
+
+        <button type="submit" class="btn btn-primary" data-i18n="saveBtn">Lưu</button>
+        <button type="button" id="dailySalesCancel" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Monthly target modal -->
+  <div id="monthlyTargetModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="monthlyTargetClose">&times;</button>
+      <h3 data-i18n="monthlyTargetModalTitle">Mục tiêu tháng</h3>
+      <form id="monthlyTargetForm">
+        <div class="form-row-2">
+          <div>
+            <label><span data-i18n="store">Cửa hàng</span><span class="required">*</span></label>
+            <select id="mtStore" required>
+              <option value="" data-i18n="selectStore">-- Chọn --</option>
+            </select>
+          </div>
+          <div>
+            <label><span data-i18n="yearMonth">Tháng</span><span class="required">*</span></label>
+            <input type="month" id="mtYearMonth" required />
+          </div>
+        </div>
+
+        <h4 class="form-section" data-i18n="salesTargets">Mục tiêu doanh số</h4>
+
+        <label data-i18n="foodSalesTarget">Mục tiêu đồ ăn</label>
+        <div class="currency-input">
+          <input type="number" id="mtFoodTarget" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="drinkSalesTarget">Mục tiêu đồ uống</label>
+        <div class="currency-input">
+          <input type="number" id="mtDrinkTarget" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="otherSalesTarget">Mục tiêu khác</label>
+        <div class="currency-input">
+          <input type="number" id="mtOtherTarget" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <h4 class="form-section" data-i18n="costRatioTargets">Mục tiêu tỷ lệ</h4>
+
+        <div class="form-row-2">
+          <div>
+            <label data-i18n="foodCostRatioTarget">Tỷ lệ chi phí đồ ăn</label>
+            <div class="currency-input">
+              <input type="number" id="mtFoodCostRatio" min="0" max="100" step="0.1" inputmode="decimal" />
+              <span class="currency-suffix">%</span>
+            </div>
+          </div>
+          <div>
+            <label data-i18n="drinkCostRatioTarget">Tỷ lệ chi phí đồ uống</label>
+            <div class="currency-input">
+              <input type="number" id="mtDrinkCostRatio" min="0" max="100" step="0.1" inputmode="decimal" />
+              <span class="currency-suffix">%</span>
+            </div>
+          </div>
+        </div>
+
+        <label data-i18n="laborCostRatioTarget">Tỷ lệ chi phí nhân công mục tiêu</label>
+        <div class="currency-input">
+          <input type="number" id="mtLaborRatio" min="0" max="100" step="0.1" inputmode="decimal" />
+          <span class="currency-suffix">%</span>
+        </div>
+
+        <label data-i18n="note">Ghi chú</label>
+        <input type="text" id="mtNote" maxlength="200" />
+
+        <button type="submit" class="btn btn-primary" data-i18n="saveBtn">Lưu</button>
+        <button type="button" id="monthlyTargetCancel" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Other labor cost edit modal -->
+  <div id="laborCostModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="laborCostClose">&times;</button>
+      <h3 data-i18n="laborCostModalTitle">Chỉnh sửa chi phí nhân công khác</h3>
+      <div class="modal-date" id="laborCostContext">--</div>
+      <form id="laborCostForm">
+        <label data-i18n="otherLaborCostLabel">Chi phí nhân công khác (cố định, thưởng, BHXH...)</label>
+        <div class="currency-input">
+          <input type="number" id="lcAmount" min="0" step="1" inputmode="numeric" required />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <div class="dash-hint muted" data-i18n="otherLaborHint">
+          ※ Phần lương theo giờ từ chấm công được tự động tính riêng.
+        </div>
+
+        <button type="submit" class="btn btn-primary" data-i18n="saveBtn">Lưu</button>
+        <button type="button" id="laborCostCancel" class="btn btn-ghost btn-block" data-i18n="cancel">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <datalist id="storeOptions"></datalist>
+  <datalist id="vendorOptions"></datalist>
 
   <!-- Add-shift modal -->
   <div id="addShiftModal" class="modal hidden" aria-hidden="true">

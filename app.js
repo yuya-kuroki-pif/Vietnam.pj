@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbyyTzbqyDbaUw844La-65eZ4CT245X3Ly9DbyQOe65q4fS8ixaEIs9l4ds3t25CV7Vv/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz3StbBEIvi-rHuc1XJqg9QzbCPfB-gTH1spJO0l4KpuayxFqjYAmeFkdolP90Sk5hA/exec";
 
 // ============================================================
 // i18n (Vietnamese / Japanese)
@@ -104,9 +104,137 @@ const I18N = {
     menuTitle: "Menu",
     menuAttendance: "Hệ thống chấm công",
     menuRegister: "Đăng ký người dùng",
+    menuTransaction: "Đăng ký giao dịch",
+    menuMaster: "Dữ liệu chính",
+    masterTitle: "Dữ liệu chính",
+    masterTabStore: "Cửa hàng",
+    masterTabVendor: "Nhà cung cấp",
+    newStoreBtn: "+ Đăng ký cửa hàng",
+    newVendorBtn: "+ Đăng ký nhà cung cấp",
+    storeModalTitle: "Đăng ký cửa hàng",
+    vendorModalTitle: "Đăng ký nhà cung cấp",
+    storeName: "Tên cửa hàng",
+    vendorName: "Tên nhà cung cấp",
+    address: "Địa chỉ",
+    phone: "Số điện thoại",
+    masterEmpty: "Chưa có dữ liệu nào.",
+    msgMasterRegistered: "Đã đăng ký.",
+    msgMasterDeleted: "Đã xóa.",
+    msgDuplicate: "Tên này đã được đăng ký.",
+    masterDeleteConfirm: "Xóa mục này?",
+    menuDashboard: "Bảng điều khiển",
+    dashTitle: "Bảng điều khiển cửa hàng",
+    dashSelectStore: "-- Chọn cửa hàng --",
+    dashSelectFirst: "Vui lòng chọn cửa hàng và tháng.",
+    enterDailySales: "+ Doanh số hằng ngày",
+    enterMonthlyTarget: "+ Mục tiêu tháng",
+    dailySalesModalTitle: "Nhập doanh số hằng ngày",
+    monthlyTargetModalTitle: "Mục tiêu tháng",
+    foodSales: "Doanh số đồ ăn",
+    drinkSales: "Doanh số đồ uống",
+    otherSales: "Doanh số khác (POS外)",
+    customers: "Số khách",
+    yearMonth: "Tháng",
+    salesTargets: "Mục tiêu doanh số",
+    foodSalesTarget: "Mục tiêu đồ ăn",
+    drinkSalesTarget: "Mục tiêu đồ uống",
+    otherSalesTarget: "Mục tiêu khác",
+    costRatioTargets: "Mục tiêu tỷ lệ",
+    foodCostRatioTarget: "Tỷ lệ chi phí đồ ăn",
+    drinkCostRatioTarget: "Tỷ lệ chi phí đồ uống",
+    laborCostRatioTarget: "Tỷ lệ nhân công mục tiêu",
+    laborSection: "Chi phí nhân công thực tế",
+    monthlyLaborCost: "Chi phí nhân công tháng",
+    upsertHint: "※ Cùng cửa hàng + ngày sẽ ghi đè dữ liệu cũ",
+    saveBtn: "Lưu",
+    dailySalesList: "Lịch sử doanh số hằng ngày",
+    dashSalesLabel: "Doanh số",
+    dashSalesSub: "Tổng (đồ ăn + đồ uống + khác)",
+    dashAvgPerCustomer: "Đơn giá/khách",
+    dashCustomers: "Số khách",
+    dashTodayPace: "Tỷ lệ đạt đến hôm nay",
+    dashMonthlyProgress: "Tiến độ tháng",
+    dashCostRatio: "Tỷ lệ chi phí",
+    dashTarget: "MT",
+    dashFood: "Đồ ăn",
+    dashDrink: "Đồ uống",
+    dashLaborRatio: "Tỷ lệ nhân công",
+    dashLaborCost: "Chi phí nhân công",
+    dashProfit: "Lợi nhuận",
+    dashProfitRatio: "Tỷ lệ lợi nhuận",
+    dashAttLabor: "Chấm công",
+    dashOtherLabor: "Khác",
+    dashSalesPerHour: "Doanh thu / giờ",
+    dashTotalHours: "Tổng giờ",
+    userStore: "Cửa hàng",
+    hourlyRate: "Lương theo giờ",
+    laborCostModalTitle: "Chỉnh sửa chi phí nhân công khác",
+    otherLaborCostLabel: "Chi phí nhân công khác (cố định, thưởng, BHXH...)",
+    otherLaborHint: "※ Phần lương theo giờ từ chấm công được tự động tính riêng.",
+    editLabel: "✎ Sửa",
+    msgSaved: "Đã lưu.",
+    selectStore: "-- Chọn cửa hàng --",
+    selectVendor: "-- Chọn nhà cung cấp --",
+    paymentMethod: "Phương thức thanh toán",
+    payCash: "Tiền mặt",
+    payTransfer: "Chuyển khoản",
+    payCard: "Thẻ tín dụng/ghi nợ",
+    payMomo: "Momo",
+    payZaloPay: "ZaloPay",
+    payVnPay: "VNPay",
+    payOther: "Khác",
+    msgNoStores: "Vui lòng đăng ký cửa hàng trước (Dữ liệu chính → Cửa hàng).",
     hintIdle: "Chạm vào mẫu ca để chọn (hoặc chạm vào ngày để nhập tự do)",
     hintArmed: "đang chọn — chạm vào ngày để thêm/xóa",
     hintNoUser: "Vui lòng chọn nhân viên trước",
+    txTitle: "Đăng ký giao dịch",
+    txTabPurchase: "Mua hàng",
+    txTabPetty: "Quỹ tiền mặt",
+    storeAll: "-- Tất cả cửa hàng --",
+    newEntry: "+ Đăng ký mới",
+    pettyBanner: "💡 Giao dịch quỹ tiền mặt được phân loại theo khoản mục.",
+    pettyTotalIn: "Tổng thu",
+    pettyTotalOut: "Tổng chi",
+    purchaseModalTitle: "Đăng ký mua hàng",
+    pettyModalTitle: "Đăng ký giao dịch quỹ tiền mặt",
+    purchaseDate: "Ngày mua",
+    store: "Cửa hàng",
+    vendor: "Nhà cung cấp",
+    productName: "Tên sản phẩm",
+    specification: "Quy cách",
+    category: "Khoản mục",
+    subCategory: "Khoản mục phụ",
+    unitPrice: "Đơn giá (chưa thuế)",
+    quantity: "Số lượng",
+    taxRate: "Thuế suất",
+    amountInclTax: "Số tiền (có thuế)",
+    amountExclTax: "Tiền chưa thuế",
+    txType: "Loại",
+    typeOut: "Chi (出金)",
+    typeIn: "Thu (入金)",
+    taxCode: "Mã số thuế (MST)",
+    note: "Ghi chú",
+    date: "Ngày",
+    catSeafood: "Hải sản",
+    catMeat: "Thịt",
+    catVeg: "Rau củ",
+    catBev: "Đồ uống",
+    catSpice: "Gia vị",
+    catSupplies: "Vật tư",
+    catFood: "Đồ ăn",
+    catDrink: "Đồ uống",
+    catUtilities: "Điện nước",
+    catCommunication: "Viễn thông",
+    catOfficeSupplies: "Văn phòng phẩm",
+    catTravel: "Đi lại",
+    catEntertainment: "Tiếp khách",
+    catBankFee: "Phí ngân hàng",
+    catOther: "Khác",
+    txEmpty: "Chưa có giao dịch nào.",
+    msgTxRegistered: "Đã đăng ký giao dịch.",
+    msgTxDeleted: "Đã xóa giao dịch.",
+    msgRequiredFields: "Vui lòng nhập các trường bắt buộc.",
+    txDeleteConfirm: "Xóa giao dịch này?",
   },
   ja: {
     appTitle: "勤怠システム",
@@ -204,9 +332,137 @@ const I18N = {
     menuTitle: "メニュー",
     menuAttendance: "勤怠システム",
     menuRegister: "ユーザー登録",
+    menuTransaction: "取引登録",
+    menuMaster: "マスタ登録",
+    masterTitle: "マスタ登録",
+    masterTabStore: "店舗",
+    masterTabVendor: "取引先",
+    newStoreBtn: "+ 店舗を登録",
+    newVendorBtn: "+ 取引先を登録",
+    storeModalTitle: "店舗登録",
+    vendorModalTitle: "取引先登録",
+    storeName: "店舗名",
+    vendorName: "取引先名",
+    address: "住所",
+    phone: "電話番号",
+    masterEmpty: "登録されたデータがありません。",
+    msgMasterRegistered: "登録しました。",
+    msgMasterDeleted: "削除しました。",
+    msgDuplicate: "この名前は既に登録されています。",
+    masterDeleteConfirm: "この項目を削除しますか?",
+    menuDashboard: "店舗ダッシュボード",
+    dashTitle: "店舗管理ダッシュボード",
+    dashSelectStore: "-- 店舗を選択 --",
+    dashSelectFirst: "店舗と月を選択してください。",
+    enterDailySales: "+ デイリー売上を入力",
+    enterMonthlyTarget: "+ 月次目標を設定",
+    dailySalesModalTitle: "デイリー売上入力",
+    monthlyTargetModalTitle: "月次目標設定",
+    foodSales: "フード売上",
+    drinkSales: "ドリンク売上",
+    otherSales: "その他売上 (POS外)",
+    customers: "客数",
+    yearMonth: "対象月",
+    salesTargets: "売上目標",
+    foodSalesTarget: "フード売上目標",
+    drinkSalesTarget: "ドリンク売上目標",
+    otherSalesTarget: "その他売上目標",
+    costRatioTargets: "目標比率",
+    foodCostRatioTarget: "フード原価率目標",
+    drinkCostRatioTarget: "ドリンク原価率目標",
+    laborCostRatioTarget: "人件費率目標",
+    laborSection: "実際の人件費",
+    monthlyLaborCost: "月次人件費",
+    upsertHint: "※ 同じ店舗・同じ日付の場合は上書き登録になります",
+    saveBtn: "保存",
+    dailySalesList: "デイリー売上履歴",
+    dashSalesLabel: "売上",
+    dashSalesSub: "(フード + ドリンク + その他)",
+    dashAvgPerCustomer: "客単価",
+    dashCustomers: "客数",
+    dashTodayPace: "本日時点達成率",
+    dashMonthlyProgress: "今日まで/月次目標",
+    dashCostRatio: "原価率",
+    dashTarget: "目標",
+    dashFood: "フード",
+    dashDrink: "ドリンク",
+    dashLaborRatio: "人件費率",
+    dashLaborCost: "人件費",
+    dashProfit: "利益",
+    dashProfitRatio: "利益率",
+    dashAttLabor: "勤怠連動",
+    dashOtherLabor: "その他人件費",
+    dashSalesPerHour: "人時売上高",
+    dashTotalHours: "合計勤務時間",
+    userStore: "所属店舗",
+    hourlyRate: "時給",
+    laborCostModalTitle: "その他人件費の編集",
+    otherLaborCostLabel: "その他人件費 (固定給・賞与・社保負担分など)",
+    otherLaborHint: "※ 勤怠から自動計算される時給分は別途加算されます。",
+    editLabel: "✎ 編集",
+    msgSaved: "保存しました。",
+    selectStore: "-- 店舗を選択 --",
+    selectVendor: "-- 取引先を選択 --",
+    paymentMethod: "支払い方法",
+    payCash: "現金",
+    payTransfer: "銀行振込",
+    payCard: "クレジット/デビットカード",
+    payMomo: "Momo",
+    payZaloPay: "ZaloPay",
+    payVnPay: "VNPay",
+    payOther: "その他",
+    msgNoStores: "先に店舗をマスタ登録してください (マスタ登録 → 店舗)。",
     hintIdle: "シフトパターンをタップして選択 (または日付タップで個別入力)",
     hintArmed: "選択中 — 日付タップで登録/解除",
     hintNoUser: "先にユーザーを選択してください",
+    txTitle: "取引登録",
+    txTabPurchase: "仕入れ登録",
+    txTabPetty: "小口現金",
+    storeAll: "-- 全店舗 --",
+    newEntry: "+ 新規登録",
+    pettyBanner: "💡 小口現金取引は科目・補助科目別に分類されます。",
+    pettyTotalIn: "入金合計",
+    pettyTotalOut: "出金合計",
+    purchaseModalTitle: "仕入れ登録",
+    pettyModalTitle: "小口現金取引登録",
+    purchaseDate: "仕入日",
+    store: "店舗",
+    vendor: "取引先",
+    productName: "商品名",
+    specification: "規格",
+    category: "科目",
+    subCategory: "補助科目",
+    unitPrice: "単価（税抜）",
+    quantity: "注文数量",
+    taxRate: "税率",
+    amountInclTax: "金額（税込）",
+    amountExclTax: "金額（税抜）",
+    txType: "入出金区分",
+    typeOut: "出金",
+    typeIn: "入金",
+    taxCode: "MST(納税者番号)",
+    note: "備考",
+    date: "日付",
+    catSeafood: "海産物",
+    catMeat: "肉類",
+    catVeg: "野菜",
+    catBev: "飲料",
+    catSpice: "調味料",
+    catSupplies: "備品",
+    catFood: "フード",
+    catDrink: "ドリンク",
+    catUtilities: "水道光熱費",
+    catCommunication: "通信費",
+    catOfficeSupplies: "消耗品費",
+    catTravel: "旅費交通費",
+    catEntertainment: "接待交際費",
+    catBankFee: "支払手数料",
+    catOther: "その他",
+    txEmpty: "取引データがありません。",
+    msgTxRegistered: "取引を登録しました。",
+    msgTxDeleted: "取引を削除しました。",
+    msgRequiredFields: "必須項目を入力してください。",
+    txDeleteConfirm: "この取引を削除しますか?",
   },
 };
 
@@ -407,6 +663,28 @@ document.querySelectorAll(".drawer-item").forEach((item) => {
       showScreen("dashboardScreen");
     } else if (target === "register") {
       showScreen("registerScreen");
+      // Make sure the store dropdown has the latest master entries
+      loadStores().then(() => {
+        const sel = document.getElementById("regStore");
+        if (!sel) return;
+        const cur = sel.value;
+        sel.innerHTML = '<option value=""></option>';
+        txStores.forEach((s) => {
+          const o = document.createElement("option");
+          o.value = s; o.textContent = s;
+          sel.appendChild(o);
+        });
+        sel.value = cur;
+      });
+    } else if (target === "transaction") {
+      showScreen("transactionScreen");
+      enterTransactionScreen();
+    } else if (target === "master") {
+      showScreen("masterScreen");
+      enterMasterScreen();
+    } else if (target === "storeDashboard") {
+      showScreen("dashboardKpiScreen");
+      enterDashboardScreen();
     }
     setActiveDrawerItem(target);
     closeDrawer();
@@ -436,6 +714,8 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     bankName: $("regBankName"),
     bankBranch: $("regBankBranch"),
     bankAccount: $("regBankAccount"),
+    store: $("regStore"),
+    hourlyRate: document.getElementById("regHourlyRate").value || 0,
   };
   if (!payload.name) {
     showToast(t("msgNameRequired"), "error");
@@ -669,9 +949,21 @@ function getPatternColor(patternId) {
   return p ? p.color : "#6b7280";
 }
 
+// Pad to "HH:MM" so a value like "6:00" matches "06:00".
+// Sheets sometimes drops the leading zero on legacy time cells, which
+// otherwise breaks the strict equality used by findMatchingPattern.
+function normalizeTimeStr(t) {
+  if (!t) return "";
+  const m = String(t).trim().match(/^(\d{1,2}):(\d{1,2})/);
+  if (!m) return String(t);
+  return m[1].padStart(2, "0") + ":" + m[2].padStart(2, "0");
+}
+
 function findMatchingPattern(startTime, endTime) {
+  const a = normalizeTimeStr(startTime);
+  const b = normalizeTimeStr(endTime);
   return patterns.find(
-    (p) => p.startTime === startTime && p.endTime === endTime
+    (p) => normalizeTimeStr(p.startTime) === a && normalizeTimeStr(p.endTime) === b
   );
 }
 
@@ -741,10 +1033,10 @@ function renderCalendar() {
 
         const startEl = document.createElement("div");
         startEl.className = "cal-shift-time";
-        startEl.textContent = s.startTime;
+        startEl.textContent = normalizeTimeStr(s.startTime);
         const endEl = document.createElement("div");
         endEl.className = "cal-shift-time";
-        endEl.textContent = s.endTime;
+        endEl.textContent = normalizeTimeStr(s.endTime);
         chip.appendChild(startEl);
         chip.appendChild(endEl);
 
@@ -798,7 +1090,8 @@ function openAddShiftModal(dateStr) {
     const left = document.createElement("span");
     left.className = "modal-existing-time";
     const matched = findMatchingPattern(s.startTime, s.endTime);
-    left.textContent = (matched ? matched.name + "  " : "") + `${s.startTime} - ${s.endTime}` + (s.note ? `  / ${s.note}` : "");
+    const ts = `${normalizeTimeStr(s.startTime)} - ${normalizeTimeStr(s.endTime)}`;
+    left.textContent = (matched ? matched.name + "  " : "") + ts + (s.note ? `  / ${s.note}` : "");
     const del = document.createElement("button");
     del.type = "button";
     del.className = "modal-existing-del";
@@ -899,8 +1192,8 @@ document.getElementById("modalSubmitBtn").addEventListener("click", async () => 
   const result = await api("registerShift", {
     userId: shiftUserId,
     date: modalDate,
-    startTime,
-    endTime,
+    startTime: normalizeTimeStr(startTime),
+    endTime: normalizeTimeStr(endTime),
     note,
   });
   if (result.success) {
@@ -991,8 +1284,10 @@ async function quickToggleShift(dateStr) {
   const p = patterns.find((x) => x.id === armedPatternId);
   if (!p) return;
 
+  const ps = normalizeTimeStr(p.startTime);
+  const pe = normalizeTimeStr(p.endTime);
   const existing = (calShiftsByDate[dateStr] || []).find(
-    (s) => s.startTime === p.startTime && s.endTime === p.endTime
+    (s) => normalizeTimeStr(s.startTime) === ps && normalizeTimeStr(s.endTime) === pe
   );
 
   let result;
@@ -1003,8 +1298,8 @@ async function quickToggleShift(dateStr) {
     result = await api("registerShift", {
       userId: shiftUserId,
       date: dateStr,
-      startTime: p.startTime,
-      endTime: p.endTime,
+      startTime: normalizeTimeStr(p.startTime),
+      endTime: normalizeTimeStr(p.endTime),
       note: "",
     });
     if (result.success) showToast(t("msgShiftRegistered"), "success");
@@ -1221,7 +1516,7 @@ function renderWeekGrid(shifts) {
 
         const timeEl = document.createElement("div");
         timeEl.className = "week-shift-time";
-        timeEl.textContent = `${s.startTime}-${s.endTime}`;
+        timeEl.textContent = `${normalizeTimeStr(s.startTime)}-${normalizeTimeStr(s.endTime)}`;
 
         chip.appendChild(nameEl);
         chip.appendChild(timeEl);
@@ -1285,6 +1580,1159 @@ function formatShiftDate(dateStr) {
     currentLang === "ja" ? weekdaysJa[dt.getDay()] : weekdaysVi[dt.getDay()];
   return `${dateStr} (${w})`;
 }
+
+// ============================================================
+// Transactions: shared helpers
+// ============================================================
+let txCurrentTab = "purchase";
+let txStores = [];
+let pettyType = "out"; // active type in petty modal
+
+function fmtVnd(n) {
+  const v = Math.round(Number(n) || 0);
+  return v.toLocaleString("vi-VN") + " đ";
+}
+
+let txVendors = [];
+
+async function loadStores() {
+  const [s, v] = await Promise.all([api("listStores"), api("listVendors")]);
+  if (s && s.success) txStores = s.stores || [];
+  if (v && v.success) txVendors = v.vendors || [];
+  refreshStoreOptions();
+  refreshVendorOptions();
+}
+
+function refreshStoreOptions() {
+  // Update <datalist> for free-typing inputs
+  const dl = document.getElementById("storeOptions");
+  if (dl) {
+    dl.innerHTML = "";
+    txStores.forEach((s) => {
+      const o = document.createElement("option");
+      o.value = s;
+      dl.appendChild(o);
+    });
+  }
+  // Update filter dropdowns (preserving current selection)
+  ["purchaseStoreFilter", "pettyStoreFilter"].forEach((id) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = t("storeAll");
+    sel.appendChild(ph);
+    txStores.forEach((s) => {
+      const o = document.createElement("option");
+      o.value = s;
+      o.textContent = s;
+      sel.appendChild(o);
+    });
+    sel.value = cur;
+  });
+}
+
+function refreshVendorOptions() {
+  const dl = document.getElementById("vendorOptions");
+  if (!dl) return;
+  dl.innerHTML = "";
+  txVendors.forEach((v) => {
+    const o = document.createElement("option");
+    o.value = v;
+    dl.appendChild(o);
+  });
+}
+
+function enterTransactionScreen() {
+  loadStores().then(() => {
+    if (txCurrentTab === "purchase") loadPurchases();
+    else loadPettyCash();
+  });
+
+  // Initialize date filters if empty
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, "0");
+  const firstDay = `${y}-${m}-01`;
+  const lastDay = `${y}-${m}-${String(new Date(y, today.getMonth() + 1, 0).getDate()).padStart(2, "0")}`;
+  const dFrom = document.getElementById("purchaseDateFrom");
+  const dTo = document.getElementById("purchaseDateTo");
+  if (!dFrom.value) dFrom.value = firstDay;
+  if (!dTo.value) dTo.value = lastDay;
+  const pm = document.getElementById("pettyMonth");
+  if (!pm.value) pm.value = `${y}-${m}`;
+}
+
+// Tab switching
+document.querySelectorAll("[data-tx-tab]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    txCurrentTab = btn.dataset.txTab;
+    document.querySelectorAll("[data-tx-tab]").forEach((b) =>
+      b.classList.toggle("active", b === btn)
+    );
+    document.querySelectorAll(".tx-tab-panel").forEach((p) => p.classList.remove("active"));
+    document.getElementById("tx-tab-" + txCurrentTab).classList.add("active");
+    if (txCurrentTab === "purchase") loadPurchases();
+    else loadPettyCash();
+  });
+});
+
+// ============================================================
+// Purchase tab
+// ============================================================
+document.getElementById("purchaseStoreFilter").addEventListener("change", loadPurchases);
+document.getElementById("purchaseDateFrom").addEventListener("change", loadPurchases);
+document.getElementById("purchaseDateTo").addEventListener("change", loadPurchases);
+document.getElementById("newPurchaseBtn").addEventListener("click", openPurchaseModal);
+document.getElementById("purchaseClose").addEventListener("click", closePurchaseModal);
+document.getElementById("purchaseCancel").addEventListener("click", closePurchaseModal);
+document.querySelector("#purchaseModal .modal-backdrop").addEventListener("click", closePurchaseModal);
+
+["pUnitPrice", "pQuantity", "pTaxRate"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", recalcPurchaseAmount);
+});
+
+function recalcPurchaseAmount() {
+  const u = parseFloat(document.getElementById("pUnitPrice").value) || 0;
+  const q = parseFloat(document.getElementById("pQuantity").value) || 0;
+  const r = parseFloat(document.getElementById("pTaxRate").value) || 0;
+  const excl = u * q;
+  const incl = excl * (1 + r / 100);
+  document.getElementById("pAmountExcl").textContent = fmtVnd(excl);
+  document.getElementById("pAmountIncl").textContent = fmtVnd(incl);
+}
+
+function fillSelectFromMaster(selectId, items, placeholderKey) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = t(placeholderKey);
+  sel.appendChild(ph);
+  items.forEach((it) => {
+    const o = document.createElement("option");
+    o.value = it;
+    o.textContent = it;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+}
+
+function openPurchaseModal() {
+  if (!txStores.length) {
+    showToast(t("msgNoStores"), "error");
+    return;
+  }
+  document.getElementById("purchaseForm").reset();
+  // Refill the store/vendor dropdowns from master data
+  fillSelectFromMaster("pStore", txStores, "selectStore");
+  fillSelectFromMaster("pVendor", txVendors, "selectVendor");
+
+  document.getElementById("pTaxRate").value = "8";
+  const today = new Date();
+  document.getElementById("pDate").value =
+    today.getFullYear() + "-" +
+    String(today.getMonth() + 1).padStart(2, "0") + "-" +
+    String(today.getDate()).padStart(2, "0");
+  // Preselect store from filter if any
+  const filterStore = document.getElementById("purchaseStoreFilter").value;
+  if (filterStore) document.getElementById("pStore").value = filterStore;
+  recalcPurchaseAmount();
+  document.getElementById("purchaseModal").classList.remove("hidden");
+}
+
+function closePurchaseModal() {
+  document.getElementById("purchaseModal").classList.add("hidden");
+}
+
+document.getElementById("purchaseForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const $ = (id) => document.getElementById(id).value;
+  const payload = {
+    date: $("pDate"),
+    store: $("pStore").trim(),
+    vendor: $("pVendor").trim(),
+    productName: $("pProductName").trim(),
+    category: $("pCategory"),
+    unitPrice: $("pUnitPrice"),
+    quantity: $("pQuantity"),
+    taxRate: $("pTaxRate"),
+    paymentMethod: $("pPaymentMethod"),
+    note: $("pNote").trim(),
+  };
+  if (!payload.date || !payload.store || !payload.productName) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
+  const r = await api("registerPurchase", payload);
+  if (r.success) {
+    showToast(t("msgTxRegistered"), "success");
+    closePurchaseModal();
+    await loadStores();
+    loadPurchases();
+  } else {
+    showToast(r.message || t("msgError"), "error");
+  }
+});
+
+async function loadPurchases() {
+  const store = document.getElementById("purchaseStoreFilter").value;
+  const dateFrom = document.getElementById("purchaseDateFrom").value;
+  const dateTo = document.getElementById("purchaseDateTo").value;
+  const r = await api("listPurchases", { store, dateFrom, dateTo });
+  renderPurchaseList((r && r.purchases) || []);
+}
+
+function renderPurchaseList(list) {
+  const root = document.getElementById("purchaseList");
+  root.innerHTML = "";
+  if (!list.length) {
+    const div = document.createElement("div");
+    div.className = "tx-empty";
+    div.textContent = t("txEmpty");
+    root.appendChild(div);
+    return;
+  }
+  list.forEach((p) => {
+    const incl = p.unitPrice * p.quantity * (1 + p.taxRate / 100);
+    const card = document.createElement("div");
+    card.className = "tx-card";
+
+    const row1 = document.createElement("div");
+    row1.className = "tx-card-row1";
+    const date = document.createElement("span");
+    date.className = "tx-card-date";
+    date.textContent = `${p.date}  ${p.store || ""}`;
+    const amount = document.createElement("span");
+    amount.className = "tx-card-amount";
+    amount.textContent = fmtVnd(incl);
+    row1.appendChild(date);
+    row1.appendChild(amount);
+
+    const row2 = document.createElement("div");
+    row2.className = "tx-card-row2";
+    row2.textContent = p.productName;
+
+    const row3 = document.createElement("div");
+    row3.className = "tx-card-row3";
+    if (p.vendor) {
+      const v = document.createElement("span");
+      v.textContent = p.vendor;
+      row3.appendChild(v);
+    }
+    if (p.category) {
+      const c = document.createElement("span");
+      c.className = "tx-card-tag";
+      const catKey = "cat" + p.category.charAt(0).toUpperCase() + p.category.slice(1);
+      const cat = t(catKey);
+      c.textContent = cat !== catKey ? cat : p.category;
+      row3.appendChild(c);
+    }
+    if (p.paymentMethod) {
+      const pm = document.createElement("span");
+      pm.className = "tx-card-tag";
+      const payKey = "pay" + p.paymentMethod.charAt(0).toUpperCase() + p.paymentMethod.slice(1);
+      const payLabel = t(payKey);
+      pm.textContent = payLabel !== payKey ? payLabel : p.paymentMethod;
+      row3.appendChild(pm);
+    }
+    const qty = document.createElement("span");
+    qty.textContent = `${fmtVnd(p.unitPrice)} × ${p.quantity}  (税${p.taxRate}%)`;
+    row3.appendChild(qty);
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "tx-card-delete";
+    del.textContent = "×";
+    del.addEventListener("click", async () => {
+      if (!confirm(t("txDeleteConfirm"))) return;
+      const r = await api("deletePurchase", { id: p.id });
+      if (r.success) {
+        showToast(t("msgTxDeleted"), "success");
+        loadPurchases();
+      } else {
+        showToast(r.message || t("msgError"), "error");
+      }
+    });
+
+    card.appendChild(row1);
+    card.appendChild(row2);
+    card.appendChild(row3);
+    card.appendChild(del);
+    root.appendChild(card);
+  });
+}
+
+// ============================================================
+// Petty cash tab
+// ============================================================
+document.getElementById("pettyStoreFilter").addEventListener("change", loadPettyCash);
+document.getElementById("pettyMonth").addEventListener("change", loadPettyCash);
+document.getElementById("newPettyBtn").addEventListener("click", openPettyModal);
+document.getElementById("pettyClose").addEventListener("click", closePettyModal);
+document.getElementById("pettyCancel").addEventListener("click", closePettyModal);
+document.querySelector("#pettyModal .modal-backdrop").addEventListener("click", closePettyModal);
+
+document.querySelectorAll(".type-toggle-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    pettyType = btn.dataset.type;
+    document.querySelectorAll(".type-toggle-btn").forEach((b) =>
+      b.classList.toggle("active", b.dataset.type === pettyType)
+    );
+  });
+});
+
+function openPettyModal() {
+  if (!txStores.length) {
+    showToast(t("msgNoStores"), "error");
+    return;
+  }
+  document.getElementById("pettyForm").reset();
+  // Refill store/vendor dropdowns from master
+  fillSelectFromMaster("cStore", txStores, "selectStore");
+  fillSelectFromMaster("cVendor", txVendors, "selectVendor");
+
+  pettyType = "out";
+  document.querySelectorAll(".type-toggle-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.type === "out")
+  );
+  document.getElementById("cTaxRate").value = "8";
+  const today = new Date();
+  document.getElementById("cDate").value =
+    today.getFullYear() + "-" +
+    String(today.getMonth() + 1).padStart(2, "0") + "-" +
+    String(today.getDate()).padStart(2, "0");
+  const filterStore = document.getElementById("pettyStoreFilter").value;
+  if (filterStore) document.getElementById("cStore").value = filterStore;
+  document.getElementById("pettyModal").classList.remove("hidden");
+}
+
+function closePettyModal() {
+  document.getElementById("pettyModal").classList.add("hidden");
+}
+
+document.getElementById("pettyForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const $ = (id) => document.getElementById(id).value;
+  const payload = {
+    date: $("cDate"),
+    store: $("cStore").trim(),
+    type: pettyType,
+    category: $("cCategory"),
+    subCategory: $("cSubCategory").trim(),
+    amount: $("cAmount"),
+    taxRate: $("cTaxRate"),
+    vendor: $("cVendor").trim(),
+    taxCode: $("cTaxCode").trim(),
+    note: $("cNote").trim(),
+  };
+  if (!payload.date || !payload.store || !payload.category || !payload.amount) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
+  const r = await api("registerPettyCash", payload);
+  if (r.success) {
+    showToast(t("msgTxRegistered"), "success");
+    closePettyModal();
+    await loadStores();
+    loadPettyCash();
+  } else {
+    showToast(r.message || t("msgError"), "error");
+  }
+});
+
+async function loadPettyCash() {
+  const store = document.getElementById("pettyStoreFilter").value;
+  const ymVal = document.getElementById("pettyMonth").value; // "yyyy-MM"
+  let year = null, month = null;
+  if (ymVal && /^\d{4}-\d{2}$/.test(ymVal)) {
+    year = parseInt(ymVal.substring(0, 4), 10);
+    month = parseInt(ymVal.substring(5, 7), 10);
+  }
+  const r = await api("listPettyCash", { store, year, month });
+  renderPettyList((r && r.items) || []);
+}
+
+function renderPettyList(items) {
+  const root = document.getElementById("pettyList");
+  root.innerHTML = "";
+
+  let totalIn = 0, totalOut = 0;
+  items.forEach((it) => {
+    if (it.type === "in") totalIn += it.amount;
+    else totalOut += it.amount;
+  });
+  document.getElementById("pettyTotalIn").textContent = fmtVnd(totalIn);
+  document.getElementById("pettyTotalOut").textContent = fmtVnd(totalOut);
+
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = "tx-empty";
+    div.textContent = t("txEmpty");
+    root.appendChild(div);
+    return;
+  }
+
+  items.forEach((it) => {
+    const card = document.createElement("div");
+    card.className = "tx-card";
+
+    const row1 = document.createElement("div");
+    row1.className = "tx-card-row1";
+    const date = document.createElement("span");
+    date.className = "tx-card-date";
+    date.textContent = `${it.date}  ${it.store || ""}`;
+    const amount = document.createElement("span");
+    amount.className = "tx-card-amount " + (it.type === "in" ? "amount-in" : "amount-out");
+    amount.textContent = (it.type === "in" ? "+" : "-") + fmtVnd(it.amount);
+    row1.appendChild(date);
+    row1.appendChild(amount);
+
+    const row2 = document.createElement("div");
+    row2.className = "tx-card-row2";
+    const catKey = "cat" + (it.category || "").charAt(0).toUpperCase() + (it.category || "").slice(1);
+    const catLabel = t(catKey) !== catKey ? t(catKey) : (it.category || "");
+    row2.textContent = catLabel + (it.subCategory ? ` / ${it.subCategory}` : "");
+
+    const row3 = document.createElement("div");
+    row3.className = "tx-card-row3";
+    const tag = document.createElement("span");
+    tag.className = "tx-card-tag " + (it.type === "in" ? "type-in" : "type-out");
+    tag.textContent = t(it.type === "in" ? "typeIn" : "typeOut");
+    row3.appendChild(tag);
+    if (it.vendor) {
+      const v = document.createElement("span");
+      v.textContent = it.vendor;
+      row3.appendChild(v);
+    }
+    if (it.taxCode) {
+      const tc = document.createElement("span");
+      tc.textContent = "MST: " + it.taxCode;
+      row3.appendChild(tc);
+    }
+    if (it.note) {
+      const n = document.createElement("span");
+      n.textContent = it.note;
+      row3.appendChild(n);
+    }
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "tx-card-delete";
+    del.textContent = "×";
+    del.addEventListener("click", async () => {
+      if (!confirm(t("txDeleteConfirm"))) return;
+      const r = await api("deletePettyCash", { id: it.id });
+      if (r.success) {
+        showToast(t("msgTxDeleted"), "success");
+        loadPettyCash();
+      } else {
+        showToast(r.message || t("msgError"), "error");
+      }
+    });
+
+    card.appendChild(row1);
+    card.appendChild(row2);
+    card.appendChild(row3);
+    card.appendChild(del);
+    root.appendChild(card);
+  });
+}
+
+// ============================================================
+// Master data: stores + vendors
+// ============================================================
+let masterCurrentTab = "store";
+
+function enterMasterScreen() {
+  if (masterCurrentTab === "store") loadStoreMaster();
+  else loadVendorMaster();
+}
+
+document.querySelectorAll("[data-master-tab]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    masterCurrentTab = btn.dataset.masterTab;
+    document.querySelectorAll("[data-master-tab]").forEach((b) =>
+      b.classList.toggle("active", b === btn)
+    );
+    document.querySelectorAll(".master-tab-panel").forEach((p) => p.classList.remove("active"));
+    document.getElementById("master-tab-" + masterCurrentTab).classList.add("active");
+    if (masterCurrentTab === "store") loadStoreMaster();
+    else loadVendorMaster();
+  });
+});
+
+// ----- Store master -----
+document.getElementById("newStoreBtn").addEventListener("click", openStoreModal);
+document.getElementById("storeModalClose").addEventListener("click", closeStoreModal);
+document.getElementById("storeCancel").addEventListener("click", closeStoreModal);
+document.querySelector("#storeModal .modal-backdrop").addEventListener("click", closeStoreModal);
+
+function openStoreModal() {
+  document.getElementById("storeForm").reset();
+  document.getElementById("storeModal").classList.remove("hidden");
+}
+function closeStoreModal() {
+  document.getElementById("storeModal").classList.add("hidden");
+}
+
+document.getElementById("storeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const $ = (id) => document.getElementById(id).value.trim();
+  const payload = {
+    name: $("sName"),
+    address: $("sAddress"),
+    phone: $("sPhone"),
+    note: $("sNote"),
+  };
+  if (!payload.name) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
+  const r = await api("registerStore", payload);
+  if (r.success) {
+    showToast(t("msgMasterRegistered"), "success");
+    closeStoreModal();
+    loadStoreMaster();
+    loadStores(); // refresh autocomplete sources too
+  } else if (r.code === "DUPLICATE") {
+    showToast(t("msgDuplicate"), "error");
+  } else {
+    showToast(r.message || t("msgError"), "error");
+  }
+});
+
+async function loadStoreMaster() {
+  const r = await api("listStoreMaster");
+  renderStoreMasterList((r && r.stores) || []);
+}
+
+function renderStoreMasterList(list) {
+  const root = document.getElementById("storeMasterList");
+  root.innerHTML = "";
+  if (!list.length) {
+    const div = document.createElement("div");
+    div.className = "tx-empty";
+    div.textContent = t("masterEmpty");
+    root.appendChild(div);
+    return;
+  }
+  list.forEach((s) => {
+    const card = document.createElement("div");
+    card.className = "master-card";
+
+    const name = document.createElement("div");
+    name.className = "master-card-name";
+    name.textContent = s.name;
+    card.appendChild(name);
+
+    const meta = document.createElement("div");
+    meta.className = "master-card-meta";
+    appendMasterMeta(meta, t("address"), s.address);
+    appendMasterMeta(meta, t("phone"), s.phone);
+    appendMasterMeta(meta, t("note"), s.note);
+    card.appendChild(meta);
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "tx-card-delete";
+    del.textContent = "×";
+    del.addEventListener("click", async () => {
+      if (!confirm(t("masterDeleteConfirm"))) return;
+      const r = await api("deleteStore", { id: s.id });
+      if (r.success) {
+        showToast(t("msgMasterDeleted"), "success");
+        loadStoreMaster();
+        loadStores();
+      } else {
+        showToast(r.message || t("msgError"), "error");
+      }
+    });
+    card.appendChild(del);
+
+    root.appendChild(card);
+  });
+}
+
+function appendMasterMeta(parent, label, value) {
+  if (!value) return;
+  const row = document.createElement("div");
+  row.className = "master-card-meta-row";
+  const lab = document.createElement("span");
+  lab.className = "master-card-meta-label";
+  lab.textContent = label;
+  const val = document.createElement("span");
+  val.className = "master-card-meta-value";
+  val.textContent = value;
+  row.appendChild(lab);
+  row.appendChild(val);
+  parent.appendChild(row);
+}
+
+// ----- Vendor master -----
+document.getElementById("newVendorBtn").addEventListener("click", openVendorModal);
+document.getElementById("vendorModalClose").addEventListener("click", closeVendorModal);
+document.getElementById("vendorCancel").addEventListener("click", closeVendorModal);
+document.querySelector("#vendorModal .modal-backdrop").addEventListener("click", closeVendorModal);
+
+function openVendorModal() {
+  document.getElementById("vendorForm").reset();
+  document.getElementById("vendorModal").classList.remove("hidden");
+}
+function closeVendorModal() {
+  document.getElementById("vendorModal").classList.add("hidden");
+}
+
+document.getElementById("vendorForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const $ = (id) => document.getElementById(id).value.trim();
+  const payload = {
+    name: $("vName"),
+    taxCode: $("vTaxCode"),
+    address: $("vAddress"),
+    phone: $("vPhone"),
+    note: $("vNote"),
+  };
+  if (!payload.name) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
+  const r = await api("registerVendor", payload);
+  if (r.success) {
+    showToast(t("msgMasterRegistered"), "success");
+    closeVendorModal();
+    loadVendorMaster();
+    loadStores();
+  } else if (r.code === "DUPLICATE") {
+    showToast(t("msgDuplicate"), "error");
+  } else {
+    showToast(r.message || t("msgError"), "error");
+  }
+});
+
+async function loadVendorMaster() {
+  const r = await api("listVendorMaster");
+  renderVendorMasterList((r && r.vendors) || []);
+}
+
+function renderVendorMasterList(list) {
+  const root = document.getElementById("vendorMasterList");
+  root.innerHTML = "";
+  if (!list.length) {
+    const div = document.createElement("div");
+    div.className = "tx-empty";
+    div.textContent = t("masterEmpty");
+    root.appendChild(div);
+    return;
+  }
+  list.forEach((v) => {
+    const card = document.createElement("div");
+    card.className = "master-card";
+
+    const name = document.createElement("div");
+    name.className = "master-card-name";
+    name.textContent = v.name;
+    card.appendChild(name);
+
+    const meta = document.createElement("div");
+    meta.className = "master-card-meta";
+    appendMasterMeta(meta, "MST", v.taxCode);
+    appendMasterMeta(meta, t("address"), v.address);
+    appendMasterMeta(meta, t("phone"), v.phone);
+    appendMasterMeta(meta, t("note"), v.note);
+    card.appendChild(meta);
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "tx-card-delete";
+    del.textContent = "×";
+    del.addEventListener("click", async () => {
+      if (!confirm(t("masterDeleteConfirm"))) return;
+      const r = await api("deleteVendor", { id: v.id });
+      if (r.success) {
+        showToast(t("msgMasterDeleted"), "success");
+        loadVendorMaster();
+        loadStores();
+      } else {
+        showToast(r.message || t("msgError"), "error");
+      }
+    });
+    card.appendChild(del);
+
+    root.appendChild(card);
+  });
+}
+
+// ============================================================
+// Store dashboard
+// ============================================================
+let dashStore = "";
+let dashYear = null;
+let dashMonth = null; // 1-12
+
+function fmtPct(v) {
+  return ((v || 0) * 100).toFixed(1) + "%";
+}
+
+function pctValueFmt(v) {
+  // For 比率 already in percent-numeric form (e.g. 25.8)
+  return (Number(v) || 0).toFixed(1) + "%";
+}
+
+function enterDashboardScreen() {
+  loadStores().then(() => {
+    fillSelectFromMaster("dashStoreFilter", txStores, "dashSelectStore");
+    if (dashYear === null) {
+      const now = new Date();
+      dashYear = now.getFullYear();
+      dashMonth = now.getMonth() + 1;
+    }
+    document.getElementById("dashMonth").value =
+      `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+    if (dashStore) {
+      document.getElementById("dashStoreFilter").value = dashStore;
+      reloadDashboard();
+    } else {
+      renderDashboardEmpty();
+      renderDailySalesList([]);
+    }
+  });
+}
+
+document.getElementById("dashStoreFilter").addEventListener("change", (e) => {
+  dashStore = e.target.value;
+  if (dashStore) reloadDashboard();
+  else { renderDashboardEmpty(); renderDailySalesList([]); }
+});
+
+document.getElementById("dashMonth").addEventListener("change", (e) => {
+  const v = e.target.value; // yyyy-MM
+  if (/^\d{4}-\d{2}$/.test(v)) {
+    dashYear = parseInt(v.slice(0, 4), 10);
+    dashMonth = parseInt(v.slice(5, 7), 10);
+    if (dashStore) reloadDashboard();
+  }
+});
+
+document.getElementById("dashPrevMonth").addEventListener("click", () => {
+  dashMonth -= 1;
+  if (dashMonth < 1) { dashMonth = 12; dashYear -= 1; }
+  document.getElementById("dashMonth").value =
+    `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+  if (dashStore) reloadDashboard();
+});
+
+document.getElementById("dashNextMonth").addEventListener("click", () => {
+  dashMonth += 1;
+  if (dashMonth > 12) { dashMonth = 1; dashYear += 1; }
+  document.getElementById("dashMonth").value =
+    `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+  if (dashStore) reloadDashboard();
+});
+
+async function reloadDashboard() {
+  if (!dashStore || !dashYear || !dashMonth) return;
+  const [dash, dailyList] = await Promise.all([
+    api("getDashboard", { store: dashStore, year: dashYear, month: dashMonth }),
+    api("listDailySales", { store: dashStore, year: dashYear, month: dashMonth }),
+  ]);
+  if (dash && dash.success) renderDashboard(dash);
+  renderDailySalesList((dailyList && dailyList.items) || []);
+}
+
+function renderDashboardEmpty() {
+  document.getElementById("dashContent").innerHTML =
+    `<div class="dash-empty">${t("dashSelectFirst")}</div>`;
+}
+
+function renderDashboard(d) {
+  const root = document.getElementById("dashContent");
+  root.innerHTML = "";
+
+  // Sales card
+  const salesCard = document.createElement("div");
+  salesCard.className = "dash-card full-width";
+  salesCard.innerHTML = `
+    <div class="dash-card-header">
+      <div>
+        <div class="dash-card-label">${t("dashSalesLabel")}</div>
+        <div class="dash-card-sub">${t("dashSalesSub")}</div>
+      </div>
+      <div class="dash-card-value positive">${fmtVnd(d.sales.total)}</div>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashFood")}</span>
+      <span class="dash-row-value">${fmtVnd(d.sales.food)}</span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashDrink")}</span>
+      <span class="dash-row-value">${fmtVnd(d.sales.drink)}</span>
+    </div>
+    ${d.sales.other ? `<div class="dash-row">
+      <span class="dash-row-label">${t("otherSales")}</span>
+      <span class="dash-row-value">${fmtVnd(d.sales.other)}</span>
+    </div>` : ""}
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashAvgPerCustomer")} / ${t("dashCustomers")}</span>
+      <span class="dash-row-value">${fmtVnd(d.sales.avgPerCustomer)} / ${d.sales.customers}人</span>
+    </div>
+  `;
+  root.appendChild(salesCard);
+
+  // Achievement card
+  const achCard = document.createElement("div");
+  achCard.className = "dash-card";
+  const todayPctNum = d.achievement.todayPace * 100;
+  const monthPctNum = d.achievement.monthlyProgress * 100;
+  achCard.innerHTML = `
+    <div class="dash-card-header">
+      <div class="dash-card-label">${t("dashTodayPace")}</div>
+      <div class="dash-card-value ${todayPctNum >= 100 ? "positive" : ""}">${fmtPct(d.achievement.todayPace)}</div>
+    </div>
+    <div class="dash-progress">
+      <div class="dash-progress-bar ${todayPctNum >= 100 ? "success" : ""}" style="width:${Math.min(todayPctNum, 100)}%"></div>
+    </div>
+    <div class="dash-card-sub">${fmtVnd(d.sales.total)} / ${fmtVnd(d.target.sales * d.todayDay / d.daysInMonth)}</div>
+
+    <div class="dash-card-header" style="margin-top:14px;">
+      <div class="dash-card-label">${t("dashMonthlyProgress")}</div>
+      <div class="dash-card-value">${fmtPct(d.achievement.monthlyProgress)}</div>
+    </div>
+    <div class="dash-progress">
+      <div class="dash-progress-bar" style="width:${Math.min(monthPctNum, 100)}%"></div>
+    </div>
+    <div class="dash-card-sub">${fmtVnd(d.sales.total)} / ${fmtVnd(d.target.sales)}</div>
+  `;
+  root.appendChild(achCard);
+
+  // Cost ratio card
+  const costCard = document.createElement("div");
+  costCard.className = "dash-card";
+  const totalRatioPct = d.cost.totalRatio * 100;
+  const foodRatioPct = d.cost.foodRatio * 100;
+  const drinkRatioPct = d.cost.drinkRatio * 100;
+  const foodCostTargetPct = d.target.foodCostRatio;
+  const drinkCostTargetPct = d.target.drinkCostRatio;
+  const totalCostTargetPct = (foodCostTargetPct + drinkCostTargetPct) / 2 || 0;
+  const costClass = totalRatioPct > totalCostTargetPct && totalCostTargetPct > 0 ? "negative" : "positive";
+  costCard.innerHTML = `
+    <div class="dash-card-header">
+      <div class="dash-card-label">${t("dashCostRatio")}</div>
+      <div>
+        <div class="dash-card-value ${costClass}">${pctValueFmt(totalRatioPct)}</div>
+      </div>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashFood")}</span>
+      <span>
+        <span class="dash-row-value ${foodCostTargetPct > 0 && foodRatioPct > foodCostTargetPct ? "over" : (foodCostTargetPct > 0 ? "under" : "")}">${pctValueFmt(foodRatioPct)}</span>
+        ${foodCostTargetPct > 0 ? `<span class="dash-row-target-label">/ ${t("dashTarget")} ${pctValueFmt(foodCostTargetPct)}</span>` : ""}
+      </span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashDrink")}</span>
+      <span>
+        <span class="dash-row-value ${drinkCostTargetPct > 0 && drinkRatioPct > drinkCostTargetPct ? "over" : (drinkCostTargetPct > 0 ? "under" : "")}">${pctValueFmt(drinkRatioPct)}</span>
+        ${drinkCostTargetPct > 0 ? `<span class="dash-row-target-label">/ ${t("dashTarget")} ${pctValueFmt(drinkCostTargetPct)}</span>` : ""}
+      </span>
+    </div>
+  `;
+  root.appendChild(costCard);
+
+  // Labor card
+  const laborCard = document.createElement("div");
+  laborCard.className = "dash-card";
+  const laborRatioPct = d.labor.ratio * 100;
+  const laborTargetPct = d.target.laborCostRatio;
+  const laborClass = laborTargetPct > 0 && laborRatioPct > laborTargetPct ? "negative" : "positive";
+  const att = d.labor.attendance || { cost: 0, hours: 0, ratio: 0 };
+  const other = d.labor.other || { cost: 0, ratio: 0 };
+  laborCard.innerHTML = `
+    <div class="dash-card-header">
+      <div class="dash-card-label">${t("dashLaborRatio")}</div>
+      <div class="dash-card-value ${laborClass}">${pctValueFmt(laborRatioPct)}${laborTargetPct > 0 ? `<span class="dash-card-target">${t("dashTarget")} ${pctValueFmt(laborTargetPct)}</span>` : ""}</div>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashLaborCost")}</span>
+      <span class="dash-row-value">${fmtVnd(d.labor.cost)}</span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashAttLabor")}</span>
+      <span class="dash-row-value">${fmtVnd(att.cost)} (${pctValueFmt(att.ratio * 100)})</span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashOtherLabor")}</span>
+      <span>
+        <span class="dash-row-value">${fmtVnd(other.cost)} (${pctValueFmt(other.ratio * 100)})</span>
+        <button type="button" class="dash-row-edit-btn" id="editOtherLaborBtn">${t("editLabel")}</button>
+      </span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashTotalHours")}</span>
+      <span class="dash-row-value">${(att.hours || 0).toFixed(1)}h</span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashSalesPerHour")}</span>
+      <span class="dash-row-value">${fmtVnd(d.labor.salesPerHour || 0)}</span>
+    </div>
+  `;
+  root.appendChild(laborCard);
+
+  const editBtn = document.getElementById("editOtherLaborBtn");
+  if (editBtn) editBtn.addEventListener("click", () => openLaborCostModal(other.cost));
+
+  // Profit card
+  const profitCard = document.createElement("div");
+  profitCard.className = "dash-card";
+  profitCard.innerHTML = `
+    <div class="dash-card-header">
+      <div class="dash-card-label">${t("dashProfit")}</div>
+      <div class="dash-card-value ${d.profit.amount >= 0 ? "positive" : "negative"}">${fmtVnd(d.profit.amount)}</div>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("dashProfitRatio")}</span>
+      <span class="dash-row-value">${fmtPct(d.profit.ratio)}</span>
+    </div>
+  `;
+  root.appendChild(profitCard);
+}
+
+function renderDailySalesList(items) {
+  const root = document.getElementById("dailySalesList");
+  root.innerHTML = "";
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = "tx-empty";
+    div.textContent = t("txEmpty");
+    root.appendChild(div);
+    return;
+  }
+  items.forEach((it) => {
+    const total = it.foodSales + it.drinkSales + it.otherSales;
+    const card = document.createElement("div");
+    card.className = "tx-card";
+
+    const row1 = document.createElement("div");
+    row1.className = "tx-card-row1";
+    const date = document.createElement("span");
+    date.className = "tx-card-date";
+    date.textContent = it.date;
+    const amt = document.createElement("span");
+    amt.className = "tx-card-amount";
+    amt.textContent = fmtVnd(total);
+    row1.appendChild(date);
+    row1.appendChild(amt);
+
+    const row3 = document.createElement("div");
+    row3.className = "tx-card-row3";
+    if (it.foodSales) {
+      const s = document.createElement("span");
+      s.textContent = `${t("dashFood")} ${fmtVnd(it.foodSales)}`;
+      row3.appendChild(s);
+    }
+    if (it.drinkSales) {
+      const s = document.createElement("span");
+      s.textContent = `${t("dashDrink")} ${fmtVnd(it.drinkSales)}`;
+      row3.appendChild(s);
+    }
+    if (it.otherSales) {
+      const s = document.createElement("span");
+      s.textContent = `${t("otherSales")} ${fmtVnd(it.otherSales)}`;
+      row3.appendChild(s);
+    }
+    if (it.customers) {
+      const s = document.createElement("span");
+      s.textContent = `${t("customers")}: ${it.customers}`;
+      row3.appendChild(s);
+    }
+    if (it.note) {
+      const s = document.createElement("span");
+      s.textContent = it.note;
+      row3.appendChild(s);
+    }
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "tx-card-delete";
+    del.textContent = "×";
+    del.addEventListener("click", async () => {
+      if (!confirm(t("txDeleteConfirm"))) return;
+      const r = await api("deleteDailySales", { id: it.id });
+      if (r.success) {
+        showToast(t("msgTxDeleted"), "success");
+        reloadDashboard();
+      }
+    });
+
+    card.appendChild(row1);
+    card.appendChild(row3);
+    card.appendChild(del);
+    root.appendChild(card);
+  });
+}
+
+// --- Daily sales modal ---
+document.getElementById("newDailySalesBtn").addEventListener("click", openDailySalesModal);
+document.getElementById("dailySalesClose").addEventListener("click", closeDailySalesModal);
+document.getElementById("dailySalesCancel").addEventListener("click", closeDailySalesModal);
+document.querySelector("#dailySalesModal .modal-backdrop").addEventListener("click", closeDailySalesModal);
+
+function openDailySalesModal() {
+  if (!txStores.length) {
+    showToast(t("msgNoStores"), "error");
+    return;
+  }
+  document.getElementById("dailySalesForm").reset();
+  fillSelectFromMaster("dsStore", txStores, "selectStore");
+  if (dashStore) document.getElementById("dsStore").value = dashStore;
+  const today = new Date();
+  document.getElementById("dsDate").value =
+    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  document.getElementById("dailySalesModal").classList.remove("hidden");
+}
+
+function closeDailySalesModal() {
+  document.getElementById("dailySalesModal").classList.add("hidden");
+}
+
+document.getElementById("dailySalesForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const $ = (id) => document.getElementById(id).value;
+  const payload = {
+    store: $("dsStore").trim(),
+    date: $("dsDate"),
+    foodSales: $("dsFoodSales") || 0,
+    drinkSales: $("dsDrinkSales") || 0,
+    otherSales: $("dsOtherSales") || 0,
+    customers: $("dsCustomers") || 0,
+    note: $("dsNote").trim(),
+  };
+  if (!payload.store || !payload.date) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
+  const r = await api("upsertDailySales", payload);
+  if (r.success) {
+    showToast(t("msgSaved"), "success");
+    closeDailySalesModal();
+    if (dashStore) reloadDashboard();
+  } else {
+    showToast(r.message || t("msgError"), "error");
+  }
+});
+
+// --- Monthly target modal ---
+document.getElementById("newMonthlyTargetBtn").addEventListener("click", openMonthlyTargetModal);
+document.getElementById("monthlyTargetClose").addEventListener("click", closeMonthlyTargetModal);
+document.getElementById("monthlyTargetCancel").addEventListener("click", closeMonthlyTargetModal);
+document.querySelector("#monthlyTargetModal .modal-backdrop").addEventListener("click", closeMonthlyTargetModal);
+
+async function openMonthlyTargetModal() {
+  if (!txStores.length) {
+    showToast(t("msgNoStores"), "error");
+    return;
+  }
+  document.getElementById("monthlyTargetForm").reset();
+  fillSelectFromMaster("mtStore", txStores, "selectStore");
+  const ym = (dashYear && dashMonth)
+    ? `${dashYear}-${String(dashMonth).padStart(2, "0")}`
+    : (function () {
+        const t = new Date();
+        return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`;
+      })();
+  document.getElementById("mtYearMonth").value = ym;
+  if (dashStore) {
+    document.getElementById("mtStore").value = dashStore;
+    // Pre-fill existing target if any
+    const r = await api("getMonthlyTarget", { store: dashStore, yearMonth: ym });
+    if (r && r.success && r.target) {
+      const tgt = r.target;
+      const setVal = (id, v) => { document.getElementById(id).value = v || ""; };
+      setVal("mtFoodTarget", tgt.foodSalesTarget);
+      setVal("mtDrinkTarget", tgt.drinkSalesTarget);
+      setVal("mtOtherTarget", tgt.otherSalesTarget);
+      setVal("mtFoodCostRatio", tgt.foodCostRatioTarget);
+      setVal("mtDrinkCostRatio", tgt.drinkCostRatioTarget);
+      setVal("mtLaborRatio", tgt.laborCostRatioTarget);
+      setVal("mtNote", tgt.note);
+    }
+  }
+  document.getElementById("monthlyTargetModal").classList.remove("hidden");
+}
+
+function closeMonthlyTargetModal() {
+  document.getElementById("monthlyTargetModal").classList.add("hidden");
+}
+
+document.getElementById("monthlyTargetForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const $ = (id) => document.getElementById(id).value;
+  const payload = {
+    store: $("mtStore").trim(),
+    yearMonth: $("mtYearMonth"),
+    foodSalesTarget: $("mtFoodTarget") || 0,
+    drinkSalesTarget: $("mtDrinkTarget") || 0,
+    otherSalesTarget: $("mtOtherTarget") || 0,
+    foodCostRatioTarget: $("mtFoodCostRatio") || 0,
+    drinkCostRatioTarget: $("mtDrinkCostRatio") || 0,
+    laborCostRatioTarget: $("mtLaborRatio") || 0,
+    note: $("mtNote").trim(),
+  };
+  if (!payload.store || !payload.yearMonth) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
+  const r = await api("upsertMonthlyTarget", payload);
+  if (r.success) {
+    showToast(t("msgSaved"), "success");
+    closeMonthlyTargetModal();
+    if (dashStore) reloadDashboard();
+  } else {
+    showToast(r.message || t("msgError"), "error");
+  }
+});
+
+// --- Other labor cost edit modal ---
+document.getElementById("laborCostClose").addEventListener("click", closeLaborCostModal);
+document.getElementById("laborCostCancel").addEventListener("click", closeLaborCostModal);
+document.querySelector("#laborCostModal .modal-backdrop").addEventListener("click", closeLaborCostModal);
+
+function openLaborCostModal(currentValue) {
+  if (!dashStore || !dashYear || !dashMonth) {
+    showToast(t("dashSelectFirst"), "error");
+    return;
+  }
+  const ym = `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+  document.getElementById("laborCostContext").textContent = `${dashStore} / ${ym}`;
+  document.getElementById("lcAmount").value = currentValue || "";
+  document.getElementById("laborCostModal").classList.remove("hidden");
+}
+
+function closeLaborCostModal() {
+  document.getElementById("laborCostModal").classList.add("hidden");
+}
+
+document.getElementById("laborCostForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const amount = document.getElementById("lcAmount").value || 0;
+  const ym = `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+  const r = await api("updateMonthlyLaborCost", {
+    store: dashStore,
+    yearMonth: ym,
+    monthlyLaborCost: amount,
+  });
+  if (r.success) {
+    showToast(t("msgSaved"), "success");
+    closeLaborCostModal();
+    reloadDashboard();
+  } else {
+    showToast(r.message || t("msgError"), "error");
+  }
+});
 
 // ============================================================
 // Init
