@@ -722,6 +722,131 @@ form select:focus {
 }
 
 /* ============================================================
+ * Pattern strip (tap-and-hold workflow for shift register)
+ * ============================================================ */
+.pattern-strip-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.pattern-strip {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.pattern-strip-chip {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 8px;
+  border: 2px solid var(--border);
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  min-height: 56px;
+  transition: transform 0.08s ease, border-color 0.1s, box-shadow 0.1s;
+  position: relative;
+}
+
+.pattern-strip-chip:active { transform: scale(0.97); }
+
+.pattern-strip-chip-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pattern-strip-chip-name::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pat-color, var(--primary));
+  flex-shrink: 0;
+}
+
+.pattern-strip-chip-time {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pattern-strip-chip.armed {
+  border-color: var(--pat-color, var(--primary));
+  background: var(--pat-color, var(--primary));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.pattern-strip-chip.armed .pattern-strip-chip-name {
+  color: #fff;
+}
+
+.pattern-strip-chip.armed .pattern-strip-chip-name::before {
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.pattern-strip-chip.armed .pattern-strip-chip-time {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.pattern-edit-btn {
+  flex-shrink: 0;
+  width: 48px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 8px;
+  font-size: 18px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pattern-edit-btn:hover { background: var(--bg); color: var(--text); }
+.pattern-edit-btn:active { transform: scale(0.95); }
+
+.armed-hint {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 8px 10px;
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.armed-hint.active {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px dashed #fbbf24;
+}
+
+/* Visual cue on calendar when armed */
+.calendar.armed .cal-day:not(.cal-other-month) {
+  cursor: copy;
+}
+
+.calendar.armed .cal-day:not(.cal-other-month):active {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+/* ============================================================
  * Modal
  * ============================================================ */
 .modal {

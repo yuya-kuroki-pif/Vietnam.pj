@@ -104,6 +104,9 @@ const I18N = {
     menuTitle: "Menu",
     menuAttendance: "Hệ thống chấm công",
     menuRegister: "Đăng ký người dùng",
+    hintIdle: "Chạm vào mẫu ca để chọn (hoặc chạm vào ngày để nhập tự do)",
+    hintArmed: "đang chọn — chạm vào ngày để thêm/xóa",
+    hintNoUser: "Vui lòng chọn nhân viên trước",
   },
   ja: {
     appTitle: "勤怠システム",
@@ -201,6 +204,9 @@ const I18N = {
     menuTitle: "メニュー",
     menuAttendance: "勤怠システム",
     menuRegister: "ユーザー登録",
+    hintIdle: "シフトパターンをタップして選択 (または日付タップで個別入力)",
+    hintArmed: "選択中 — 日付タップで登録/解除",
+    hintNoUser: "先にユーザーを選択してください",
   },
 };
 
@@ -223,6 +229,7 @@ let calMonth = null; // 1-12
 let calShiftsByDate = {}; // { "yyyy-MM-dd": [shift, ...] }
 let modalDate = "";
 let modalPatternId = ""; // "P1" | "P2" | "P3" | "custom"
+let armedPatternId = null; // when set, tapping a calendar date toggles that pattern
 
 // ============================================================
 // i18n helpers
@@ -247,6 +254,7 @@ function applyLanguage() {
   // Re-render dynamic content that contains translated text
   updateStatusBadge();
   refreshUserPickerOptions();
+  updateArmedHint();
   if (currentTab === "shiftManage") loadManageShifts();
   if (currentTab === "shiftRegister") renderCalendar();
 }
@@ -614,6 +622,7 @@ function formatDateLocal(d) {
 
 document.getElementById("userPickerShift").addEventListener("change", (e) => {
   shiftUserId = e.target.value;
+  updateArmedHint();
   loadCalendar();
 });
 
@@ -749,11 +758,18 @@ function renderCalendar() {
       }
       cell.appendChild(shiftsBox);
 
-      cell.addEventListener("click", () => openAddShiftModal(dateStr));
+      cell.addEventListener("click", () => {
+        if (armedPatternId) {
+          quickToggleShift(dateStr);
+        } else {
+          openAddShiftModal(dateStr);
+        }
+      });
     }
     grid.appendChild(cell);
   }
   root.appendChild(grid);
+  root.classList.toggle("armed", !!armedPatternId);
 }
 
 // ============================================================
@@ -903,7 +919,96 @@ async function loadPatterns() {
   const result = await api("getPatterns");
   if (result.success) {
     patterns = result.patterns || [];
+    renderPatternStrip();
+    updateArmedHint();
   }
+}
+
+// ============================================================
+// Pattern strip (tap-and-hold quick entry)
+// ============================================================
+function renderPatternStrip() {
+  const strip = document.getElementById("patternStrip");
+  if (!strip) return;
+  strip.innerHTML = "";
+  patterns.forEach((p) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "pattern-strip-chip" + (p.id === armedPatternId ? " armed" : "");
+    chip.style.setProperty("--pat-color", p.color);
+    const nameEl = document.createElement("div");
+    nameEl.className = "pattern-strip-chip-name";
+    nameEl.textContent = p.name;
+    const timeEl = document.createElement("div");
+    timeEl.className = "pattern-strip-chip-time";
+    timeEl.textContent = `${p.startTime}-${p.endTime}`;
+    chip.appendChild(nameEl);
+    chip.appendChild(timeEl);
+    chip.addEventListener("click", () => toggleArmedPattern(p.id));
+    strip.appendChild(chip);
+  });
+}
+
+function toggleArmedPattern(patternId) {
+  armedPatternId = armedPatternId === patternId ? null : patternId;
+  renderPatternStrip();
+  updateArmedHint();
+  // Re-render calendar so the .armed class on root toggles
+  if (currentTab === "shiftRegister") renderCalendar();
+}
+
+function updateArmedHint() {
+  const hint = document.getElementById("armedHint");
+  if (!hint) return;
+  if (!shiftUserId) {
+    hint.textContent = t("hintNoUser");
+    hint.classList.remove("active");
+    return;
+  }
+  if (armedPatternId) {
+    const p = patterns.find((x) => x.id === armedPatternId);
+    const name = p ? p.name : "";
+    hint.textContent = `「${name}」 ${t("hintArmed")}`;
+    hint.classList.add("active");
+  } else {
+    hint.textContent = t("hintIdle");
+    hint.classList.remove("active");
+  }
+}
+
+// Quick add/remove on cell tap when a pattern is armed.
+// Toggles: tapping a date with the armed pattern already registered removes it.
+async function quickToggleShift(dateStr) {
+  if (!shiftUserId) {
+    showToast(t("msgPickUserFirst"), "error");
+    return;
+  }
+  const p = patterns.find((x) => x.id === armedPatternId);
+  if (!p) return;
+
+  const existing = (calShiftsByDate[dateStr] || []).find(
+    (s) => s.startTime === p.startTime && s.endTime === p.endTime
+  );
+
+  let result;
+  if (existing) {
+    result = await api("deleteShift", { shiftId: existing.id });
+    if (result.success) showToast(t("msgShiftDeleted"), "success");
+  } else {
+    result = await api("registerShift", {
+      userId: shiftUserId,
+      date: dateStr,
+      startTime: p.startTime,
+      endTime: p.endTime,
+      note: "",
+    });
+    if (result.success) showToast(t("msgShiftRegistered"), "success");
+  }
+  if (!result.success) {
+    showToast(result.message || t("msgError"), "error");
+    return;
+  }
+  await loadCalendar();
 }
 
 function openPatternsModal() {
@@ -971,7 +1076,10 @@ document.getElementById("patternsSaveBtn").addEventListener("click", async () =>
     showToast(t("msgPatternsSaved"), "success");
     await loadPatterns();
     closePatternsModal();
-    if (currentTab === "shiftRegister") renderCalendar();
+    if (currentTab === "shiftRegister") {
+      renderPatternStrip();
+      renderCalendar();
+    }
   } else {
     showToast(result.message || t("msgError"), "error");
   }

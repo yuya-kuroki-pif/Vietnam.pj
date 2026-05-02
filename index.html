@@ -87,8 +87,13 @@
             </select>
           </div>
 
-          <div class="cal-toolbar">
-            <button type="button" id="editPatternsBtn" class="btn-mini" data-i18n="editPatterns">⚙ Mẫu ca</button>
+          <div class="pattern-strip-row">
+            <div id="patternStrip" class="pattern-strip"></div>
+            <button type="button" id="editPatternsBtn" class="pattern-edit-btn" aria-label="Edit patterns">⚙</button>
+          </div>
+
+          <div id="armedHint" class="armed-hint" data-i18n="hintIdle">
+            Chạm vào mẫu ca để chọn
           </div>
 
           <div class="month-nav">
@@ -98,10 +103,6 @@
           </div>
 
           <div id="calendar" class="calendar"></div>
-
-          <div class="cal-hint muted" data-i18n="calHint">
-            Bấm vào ngày để đăng ký ca
-          </div>
         </div>
 
         <!-- Shift manage tab (weekly view, Mon start) -->
