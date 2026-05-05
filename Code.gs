@@ -495,17 +495,23 @@ function normalizeTime(v) {
   return s;
 }
 
-// Write `values` to a specific row with text-format applied IN ADVANCE so
-// Google Sheets does NOT auto-parse strings like "2026-05-11" into Date
-// values (which would then shift by ±1 day across timezones).
+// Write `values` to a specific row, ensuring every cell is text-formatted
+// BEFORE the value is written. The flush() call forces Sheets to apply the
+// format first, otherwise some queued operations let "2026-05-11" be parsed
+// as a Date (and then shift by ±1 day across timezones on read-back).
 function writeTextRow(sheet, rowIndex, values) {
   var range = sheet.getRange(rowIndex, 1, 1, values.length);
   range.setNumberFormat("@");
-  range.setValues([values]);
+  SpreadsheetApp.flush(); // ensure format is committed before writing values
+  // setValues with all-string values + @ format → guaranteed plain-text cells.
+  var stringified = values.map(function (v) {
+    return v === null || v === undefined ? "" : String(v);
+  });
+  range.setValues([stringified]);
 }
 
 // Append a new row with text-format applied IN ADVANCE — same protection
-// as writeTextRow, but for new rows (sheet.getLastRow() + 1).
+// as writeTextRow, but for new rows.
 function appendTextRow(sheet, values) {
   var newRowIdx = sheet.getLastRow() + 1;
   writeTextRow(sheet, newRowIdx, values);
