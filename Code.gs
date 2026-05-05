@@ -295,15 +295,16 @@ function getSheet(name) {
   }
 
   // Fast path: if we've already prepared this sheet within this script
-  // execution, skip all the expensive setup below. This is the main perf
-  // optimisation — previously every getSheet() call applied
-  // setNumberFormat("@") to the entire sheet (~26,000 cells per sheet),
-  // which made every API request slow.
+  // execution, skip all the expensive setup below. This caps the cost at
+  // one full preparation per request, regardless of how many times
+  // getSheet(name) is called.
   if (_PREPARED[name]) return sheet;
 
-  // For brand-new sheets, apply text format ONCE. The format persists, so
-  // subsequent reads / writes don't need to re-apply it.
-  if (freshlyCreated && sheet.getMaxColumns() > 0) {
+  // Apply text format on the FIRST getSheet call per session for each
+  // sheet. This guarantees that newly-appended rows don't get re-parsed
+  // as dates/times (which would otherwise flip "2026-05-03" into a Date
+  // value and shift the day on read-back across timezones).
+  if (sheet.getMaxColumns() > 0) {
     sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).setNumberFormat("@");
   }
 
@@ -331,6 +332,9 @@ function getSheet(name) {
   }
   if (name === USERS_SHEET) {
     ensureUserColumns(sheet);
+  }
+  if (name === SHIFTS_SHEET) {
+    healShiftDates(sheet);
   }
   if (name === PURCHASES_SHEET) {
     ensureColumns(sheet, PURCHASE_COLUMNS);
@@ -370,6 +374,29 @@ function ensureColumns(sheet, expected) {
 // time-only Date values that Sheets created from a text input).
 function getSpreadsheetTz() {
   return SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+}
+
+// Convert any Date-typed cells in the Shifts sheet's date column to plain
+// text "yyyy-MM-dd" using the spreadsheet's TZ. Prevents the "shift jumps
+// to next/previous day" bug that happens when a date was auto-parsed as
+// a Date by Sheets and then read back through a mismatched timezone.
+function healShiftDates(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var dateCol = headers.indexOf("date") + 1;
+  if (dateCol < 1) return;
+  var range = sheet.getRange(2, dateCol, lastRow - 1, 1);
+  var values = range.getValues();
+  var changed = false;
+  var tz = getSpreadsheetTz();
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][0] instanceof Date) {
+      values[i][0] = Utilities.formatDate(values[i][0], tz, "yyyy-MM-dd");
+      changed = true;
+    }
+  }
+  if (changed) range.setValues(values);
 }
 
 // Convert any Date-typed cells in the pattern sheet's time columns back to
@@ -440,14 +467,18 @@ function findUserById(userId) {
 
 function normalizeDate(v) {
   if (v instanceof Date) {
-    return Utilities.formatDate(v, TIMEZONE, "yyyy-MM-dd");
+    // Use the SPREADSHEET's own timezone — when Sheets auto-parses a
+    // string like "2026-05-03" it stores midnight in the spreadsheet TZ.
+    // Formatting back with the same TZ round-trips correctly, even if
+    // that TZ differs from this script's TIMEZONE constant.
+    return Utilities.formatDate(v, getSpreadsheetTz(), "yyyy-MM-dd");
   }
   return String(v);
 }
 
 function normalizeTimestamp(v) {
   if (v instanceof Date) {
-    return Utilities.formatDate(v, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+    return Utilities.formatDate(v, getSpreadsheetTz(), "yyyy-MM-dd'T'HH:mm:ssXXX");
   }
   return String(v);
 }
@@ -462,6 +493,23 @@ function normalizeTime(v) {
   var s = String(v);
   if (s.length >= 5 && s.charAt(2) === ":") return s.substring(0, 5);
   return s;
+}
+
+// Write `values` to a specific row with text-format applied IN ADVANCE so
+// Google Sheets does NOT auto-parse strings like "2026-05-11" into Date
+// values (which would then shift by ±1 day across timezones).
+function writeTextRow(sheet, rowIndex, values) {
+  var range = sheet.getRange(rowIndex, 1, 1, values.length);
+  range.setNumberFormat("@");
+  range.setValues([values]);
+}
+
+// Append a new row with text-format applied IN ADVANCE — same protection
+// as writeTextRow, but for new rows (sheet.getLastRow() + 1).
+function appendTextRow(sheet, values) {
+  var newRowIdx = sheet.getLastRow() + 1;
+  writeTextRow(sheet, newRowIdx, values);
+  return newRowIdx;
 }
 
 function getAllRows(sheet) {
@@ -712,7 +760,7 @@ function recordAttendance(body) {
     }
 
     var sheet = getSheet(ATT_SHEET);
-    sheet.appendRow([uuid(), userId, type, nowIso(), todayStr()]);
+    appendTextRow(sheet, [uuid(), userId, type, nowIso(), todayStr()]);
 
     var refreshed = getTodayLogs(userId);
     return {
@@ -773,7 +821,7 @@ function registerShift(body) {
   lock.waitLock(5000);
   try {
     var sheet = getSheet(SHIFTS_SHEET);
-    sheet.appendRow([
+    appendTextRow(sheet, [
       uuid(),
       userId,
       user.name,
@@ -914,9 +962,9 @@ function savePatterns(body) {
       var rowData = [pid, name, startTime, endTime, color];
       var existing = rowByPid[pid];
       if (existing) {
-        sheet.getRange(existing._rowIndex, 1, 1, rowData.length).setValues([rowData]);
+        writeTextRow(sheet, existing._rowIndex, rowData);
       } else {
-        sheet.appendRow(rowData);
+        appendTextRow(sheet, rowData);
       }
     });
     return { success: true };
@@ -1012,7 +1060,7 @@ function registerPurchase(body) {
     };
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
-    sheet.appendRow(row);
+    appendTextRow(sheet, row);
     _ensureInMaster(STORES_SHEET, store);
     if (vendor) _ensureInMaster(VENDORS_SHEET, vendor);
     // Auto-track item in inventory master so it shows up in stocktake suggestions.
@@ -1141,7 +1189,7 @@ function registerPettyCash(body) {
     };
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
-    sheet.appendRow(row);
+    appendTextRow(sheet, row);
     _ensureInMaster(STORES_SHEET, store);
     if (vendorName.trim()) _ensureInMaster(VENDORS_SHEET, vendorName.trim());
     return { success: true };
@@ -1384,9 +1432,9 @@ function upsertDailySales(body) {
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
     if (existing) {
-      sheet.getRange(existing._rowIndex, 1, 1, row.length).setValues([row]);
+      writeTextRow(sheet, existing._rowIndex, row);
     } else {
-      sheet.appendRow(row);
+      appendTextRow(sheet, row);
     }
     return { success: true };
   } finally {
@@ -1478,9 +1526,9 @@ function upsertMonthlyTarget(body) {
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
     if (existing) {
-      sheet.getRange(existing._rowIndex, 1, 1, row.length).setValues([row]);
+      writeTextRow(sheet, existing._rowIndex, row);
     } else {
-      sheet.appendRow(row);
+      appendTextRow(sheet, row);
     }
     return { success: true };
   } finally {
@@ -1521,7 +1569,7 @@ function updateMonthlyLaborCost(body) {
       createdAt: nowIso(),
     };
     var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
-    sheet.appendRow(row);
+    appendTextRow(sheet, row);
     return { success: true };
   } finally {
     lock.releaseLock();
@@ -1892,7 +1940,7 @@ function registerInventoryItem(body) {
     };
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
-    sheet.appendRow(row);
+    appendTextRow(sheet, row);
     return { success: true, id: data.id };
   } finally {
     lock.releaseLock();
@@ -1951,7 +1999,7 @@ function _upsertInventoryItem(store, category, productName, unit, unitPrice, ven
       lastPurchaseDate: nowStr,
     };
     var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
-    sheet.appendRow(row);
+    appendTextRow(sheet, row);
   }
 }
 
@@ -2150,9 +2198,9 @@ function upsertStocktakeEntry(body) {
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
     if (existing) {
-      sheet.getRange(existing._rowIndex, 1, 1, row.length).setValues([row]);
+      writeTextRow(sheet, existing._rowIndex, row);
     } else {
-      sheet.appendRow(row);
+      appendTextRow(sheet, row);
     }
     return { success: true, id: data.id, amount: amount };
   } finally {
@@ -2348,7 +2396,7 @@ function copyStocktakeFromPrevMonth(body) {
         updatedAt: nowIso(),
       };
       var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
-      sheet.appendRow(row);
+      appendTextRow(sheet, row);
       copied += 1;
     });
     return { success: true, copied: copied };
