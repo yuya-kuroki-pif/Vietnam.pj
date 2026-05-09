@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"c:\\\\Users\\\\stn12\\\\Desktop\\\\Vietnam.pj\" diff index.html)"
+    ]
+  }
+}
