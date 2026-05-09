@@ -2424,6 +2424,7 @@ document.getElementById("newUserBtn").addEventListener("click", () => {
 
 async function loadUserMaster() {
   const r = await api("listUsers");
+  console.log("[listUsers] response:", r);
   renderUserMasterList((r && r.users) || []);
 }
 
@@ -2443,7 +2444,7 @@ function renderUserMasterList(list) {
 
     const name = document.createElement("div");
     name.className = "master-card-name";
-    name.textContent = u.name;
+    name.textContent = u.name || u.email || u.id || "(no name)";
     card.appendChild(name);
 
     const meta = document.createElement("div");
@@ -2453,11 +2454,7 @@ function renderUserMasterList(list) {
       const lbl = t(k);
       appendMasterMeta(meta, t("positionLabel"), lbl !== k ? lbl : u.role);
     }
-    appendMasterMeta(meta, t("userStore"), u.store);
-    if (u.hourlyRate) appendMasterMeta(meta, t("hourlyRate"), fmtVnd(u.hourlyRate) + "/h");
-    appendMasterMeta(meta, t("email"), u.email);
-    appendMasterMeta(meta, t("phone"), u.phone);
-    appendMasterMeta(meta, t("hireDate"), u.hireDate);
+    if (u.hireDate) appendMasterMeta(meta, t("hireDate"), fmtDate(u.hireDate));
     card.appendChild(meta);
 
     const del = document.createElement("button");
