@@ -630,23 +630,33 @@ function registerUser(body) {
 function listUsers(body) {
   var sheet = getSheet(USERS_SHEET);
   var users = getAllRows(sheet);
-  users.sort(function (a, b) {
-    var na = String(a.name || "").toLowerCase();
-    var nb = String(b.name || "").toLowerCase();
+  var tz = getSpreadsheetTz();
+  function asStr(v) {
+    if (v === null || v === undefined) return "";
+    if (v instanceof Date) return Utilities.formatDate(v, tz, "yyyy-MM-dd");
+    return String(v).trim();
+  }
+  // Filter out blank/phantom rows: a real user must have an id or a name.
+  var filtered = users.filter(function (u) {
+    return asStr(u.id) !== "" || asStr(u.name) !== "";
+  });
+  filtered.sort(function (a, b) {
+    var na = asStr(a.name).toLowerCase();
+    var nb = asStr(b.name).toLowerCase();
     return na < nb ? -1 : na > nb ? 1 : 0;
   });
   return {
     success: true,
-    users: users.map(function (u) {
+    users: filtered.map(function (u) {
       return {
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        phone: u.phone,
-        store: u.store,
+        id: asStr(u.id),
+        name: asStr(u.name),
+        email: asStr(u.email),
+        role: asStr(u.role),
+        phone: asStr(u.phone),
+        store: asStr(u.store),
         hourlyRate: _toNum(u.hourlyRate),
-        hireDate: u.hireDate,
+        hireDate: asStr(u.hireDate),
       };
     }),
   };

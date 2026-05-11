@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbwdL3GTsluCYIN8Xu9StTKhkmoeMfR4Gk8liWS-sgNBTSqPGsWGRcJP1fGyxoTIDasN/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz-GERsQRxVTKB-hMgvv_EwpqhDr57aqu2x91x4I1citYF_pyFy5b-GkTdP5nzh2YDH/exec";
 
 // ============================================================
 // PWA: register service worker so the app is installable on home screen
@@ -702,7 +702,9 @@ function switchTab(tab) {
   document.querySelectorAll(".tab-panel").forEach((p) => {
     p.classList.remove("active");
   });
-  document.getElementById("tab-" + tab).classList.add("active");
+  const panel = document.getElementById("tab-" + tab);
+  if (panel) panel.classList.add("active");
+  else return;
 
   if (tab === "attendance") {
     if (attendanceUserId) refreshStatus();
