@@ -38,6 +38,10 @@ var LOCATIONS_SHEET = "Locations";
 var INVENTORY_ITEMS_SHEET = "InventoryItems";
 var STOCKTAKES_SHEET = "Stocktakes";
 
+var ATTENDANCE_COLUMNS = [
+  "id", "userId", "type", "timestamp", "date", "name", "role"
+];
+
 var PURCHASE_COLUMNS = [
   "id", "store", "date", "vendor", "productName", "specification",
   "category", "unitPrice", "quantity", "taxRate", "paymentMethod",
@@ -260,7 +264,7 @@ function getSheet(name) {
       sheet.appendRow(USER_COLUMNS);
       sheet.getRange(1, 1, 1, USER_COLUMNS.length).setFontWeight("bold");
     } else if (name === ATT_SHEET) {
-      sheet.appendRow(["id", "userId", "type", "timestamp", "date"]);
+      sheet.appendRow(ATTENDANCE_COLUMNS);
     } else if (name === SHIFTS_SHEET) {
       sheet.appendRow(["id", "userId", "userName", "date", "startTime", "endTime", "note", "createdAt"]);
     } else if (name === PATTERNS_SHEET) {
@@ -335,6 +339,9 @@ function getSheet(name) {
   }
   if (name === SHIFTS_SHEET) {
     healShiftDates(sheet);
+  }
+  if (name === ATT_SHEET) {
+    ensureColumns(sheet, ATTENDANCE_COLUMNS);
   }
   if (name === PURCHASES_SHEET) {
     ensureColumns(sheet, PURCHASE_COLUMNS);
@@ -776,7 +783,10 @@ function recordAttendance(body) {
     }
 
     var sheet = getSheet(ATT_SHEET);
-    appendTextRow(sheet, [uuid(), userId, type, nowIso(), todayStr()]);
+    var user = findUserById(userId);
+    var name = user ? String(user.name || "") : "";
+    var role = user ? String(user.role || "") : "";
+    appendTextRow(sheet, [uuid(), userId, type, nowIso(), todayStr(), name, role]);
 
     var refreshed = getTodayLogs(userId);
     return {
