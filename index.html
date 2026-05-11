@@ -723,28 +723,82 @@
           </div>
         </div>
 
-        <label data-i18n="foodSales">Doanh số đồ ăn</label>
+        <label data-i18n="totalSalesIncl">売上合計（税込）</label>
         <div class="currency-input">
-          <input type="number" id="dsFoodSales" min="0" step="1" inputmode="numeric" />
+          <input type="number" id="dsTotalSalesIncl" min="0" step="1" inputmode="numeric" />
           <span class="currency-suffix">đ</span>
         </div>
 
-        <label data-i18n="drinkSales">Doanh số đồ uống</label>
+        <label data-i18n="totalSalesExcl">売上合計（税抜）</label>
         <div class="currency-input">
-          <input type="number" id="dsDrinkSales" min="0" step="1" inputmode="numeric" />
+          <input type="number" id="dsTotalSalesExcl" min="0" step="1" inputmode="numeric" />
           <span class="currency-suffix">đ</span>
         </div>
 
-        <label data-i18n="otherSales">Doanh số khác (POS外)</label>
+        <label data-i18n="foodSalesIncl">フード売上（税込）</label>
         <div class="currency-input">
-          <input type="number" id="dsOtherSales" min="0" step="1" inputmode="numeric" />
+          <input type="number" id="dsFoodSalesIncl" min="0" step="1" inputmode="numeric" />
           <span class="currency-suffix">đ</span>
         </div>
 
-        <label data-i18n="customers">Số khách</label>
+        <label data-i18n="foodSalesExcl">フード売上（税抜）</label>
+        <div class="currency-input">
+          <input type="number" id="dsFoodSalesExcl" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="drinkSalesIncl">ドリンク売上（税込）</label>
+        <div class="currency-input">
+          <input type="number" id="dsDrinkSalesIncl" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="drinkSalesExcl">ドリンク売上（税抜）</label>
+        <div class="currency-input">
+          <input type="number" id="dsDrinkSalesExcl" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="paymentCash">売上 現金</label>
+        <div class="currency-input">
+          <input type="number" id="dsPaymentCash" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="paymentQr">売上 QR</label>
+        <div class="currency-input">
+          <input type="number" id="dsPaymentQr" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="paymentCard">売上 クレジットカード</label>
+        <div class="currency-input">
+          <input type="number" id="dsPaymentCard" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="discountAmount">割引金額</label>
+        <div class="currency-input">
+          <input type="number" id="dsDiscountAmount" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="depositAmount">入金金額</label>
+        <div class="currency-input">
+          <input type="number" id="dsDepositAmount" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="pettyCashAmount">小口使用金額</label>
+        <div class="currency-input">
+          <input type="number" id="dsPettyCashAmount" min="0" step="1" inputmode="numeric" />
+          <span class="currency-suffix">đ</span>
+        </div>
+
+        <label data-i18n="customers">ご来店人数</label>
         <input type="number" id="dsCustomers" min="0" step="1" inputmode="numeric" />
 
-        <label data-i18n="note">Ghi chú</label>
+        <label data-i18n="note">備考</label>
         <input type="text" id="dsNote" maxlength="200" />
 
         <div class="dash-hint muted" data-i18n="upsertHint">

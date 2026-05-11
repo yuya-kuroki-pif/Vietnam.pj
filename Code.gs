@@ -42,6 +42,17 @@ var ATTENDANCE_COLUMNS = [
   "id", "userId", "type", "timestamp", "date", "name", "role"
 ];
 
+var DAILY_SALES_COLUMNS = [
+  "id", "store", "date",
+  "foodSales", "drinkSales", "otherSales",
+  "customers", "note", "createdAt",
+  "totalSalesIncl", "totalSalesExcl",
+  "foodSalesIncl", "foodSalesExcl",
+  "drinkSalesIncl", "drinkSalesExcl",
+  "paymentCash", "paymentQr", "paymentCard",
+  "discountAmount", "depositAmount", "pettyCashAmount"
+];
+
 var PURCHASE_COLUMNS = [
   "id", "store", "date", "vendor", "productName", "specification",
   "category", "unitPrice", "quantity", "taxRate", "paymentMethod",
@@ -278,10 +289,7 @@ function getSheet(name) {
     } else if (name === VENDORS_SHEET) {
       sheet.appendRow(["id", "name", "taxCode", "address", "phone", "note", "createdAt"]);
     } else if (name === DAILY_SALES_SHEET) {
-      sheet.appendRow([
-        "id", "store", "date", "foodSales", "drinkSales", "otherSales",
-        "customers", "note", "createdAt"
-      ]);
+      sheet.appendRow(DAILY_SALES_COLUMNS);
     } else if (name === MONTHLY_TARGETS_SHEET) {
       sheet.appendRow([
         "id", "store", "yearMonth",
@@ -342,6 +350,9 @@ function getSheet(name) {
   }
   if (name === ATT_SHEET) {
     ensureColumns(sheet, ATTENDANCE_COLUMNS);
+  }
+  if (name === DAILY_SALES_SHEET) {
+    ensureColumns(sheet, DAILY_SALES_COLUMNS);
   }
   if (name === PURCHASES_SHEET) {
     ensureColumns(sheet, PURCHASE_COLUMNS);
@@ -1419,6 +1430,18 @@ function listDailySales(body) {
         otherSales: _toNum(r.otherSales),
         customers: _toNum(r.customers),
         note: r.note,
+        totalSalesIncl: _toNum(r.totalSalesIncl),
+        totalSalesExcl: _toNum(r.totalSalesExcl),
+        foodSalesIncl: _toNum(r.foodSalesIncl),
+        foodSalesExcl: _toNum(r.foodSalesExcl),
+        drinkSalesIncl: _toNum(r.drinkSalesIncl),
+        drinkSalesExcl: _toNum(r.drinkSalesExcl),
+        paymentCash: _toNum(r.paymentCash),
+        paymentQr: _toNum(r.paymentQr),
+        paymentCard: _toNum(r.paymentCard),
+        discountAmount: _toNum(r.discountAmount),
+        depositAmount: _toNum(r.depositAmount),
+        pettyCashAmount: _toNum(r.pettyCashAmount),
       };
     }),
   };
@@ -1444,16 +1467,41 @@ function upsertDailySales(body) {
       }
     }
 
+    var totalSalesIncl = _toNum(body.totalSalesIncl);
+    var totalSalesExcl = _toNum(body.totalSalesExcl);
+    var foodSalesIncl = _toNum(body.foodSalesIncl);
+    var foodSalesExcl = _toNum(body.foodSalesExcl);
+    var drinkSalesIncl = _toNum(body.drinkSalesIncl);
+    var drinkSalesExcl = _toNum(body.drinkSalesExcl);
+    // Back-compat: dashboard aggregates use foodSales/drinkSales/otherSales (tax-excl).
+    // If only legacy fields are sent, fall back to them.
+    var foodSales = foodSalesExcl || _toNum(body.foodSales);
+    var drinkSales = drinkSalesExcl || _toNum(body.drinkSales);
+    var otherFromTotal = totalSalesExcl - foodSales - drinkSales;
+    var otherSales = otherFromTotal > 0 ? otherFromTotal : _toNum(body.otherSales);
+
     var data = {
       id: existing ? existing.id : uuid(),
       store: store,
       date: date,
-      foodSales: _toNum(body.foodSales),
-      drinkSales: _toNum(body.drinkSales),
-      otherSales: _toNum(body.otherSales),
+      foodSales: foodSales,
+      drinkSales: drinkSales,
+      otherSales: otherSales,
       customers: _toNum(body.customers),
       note: (body.note || "").toString(),
       createdAt: existing ? existing.createdAt : nowIso(),
+      totalSalesIncl: totalSalesIncl,
+      totalSalesExcl: totalSalesExcl,
+      foodSalesIncl: foodSalesIncl,
+      foodSalesExcl: foodSalesExcl,
+      drinkSalesIncl: drinkSalesIncl,
+      drinkSalesExcl: drinkSalesExcl,
+      paymentCash: _toNum(body.paymentCash),
+      paymentQr: _toNum(body.paymentQr),
+      paymentCard: _toNum(body.paymentCard),
+      discountAmount: _toNum(body.discountAmount),
+      depositAmount: _toNum(body.depositAmount),
+      pettyCashAmount: _toNum(body.pettyCashAmount),
     };
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });

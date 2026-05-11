@@ -1511,6 +1511,20 @@ form select:focus {
 
 .tx-card-delete:hover { background: #fee2e2; }
 
+.tx-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.tx-card-actions .btn-sm {
+  font-size: 12px;
+  padding: 4px 10px;
+  min-height: 0;
+  width: auto;
+}
+
 .tx-empty {
   text-align: center;
   color: var(--muted);

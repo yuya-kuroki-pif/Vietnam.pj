@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzbuMyvAHGBIFdLspBAJdDgMPYm_ac-MlbNMlY51mJBsAYAaoaaOrcjDIBjn9fVxL9A/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyQNzaWBcXiaPLxRbWzg30QZFdONJthGZpudriyPQyFB8nbdtvWEIXDT-Ffo1KyirC-/exec";
 
 // ============================================================
 // PWA: register service worker so the app is installable on home screen
@@ -149,6 +149,20 @@ const I18N = {
     drinkSales: "Doanh số đồ uống",
     otherSales: "Doanh số khác (POS外)",
     customers: "Số khách",
+    totalSalesIncl: "Tổng doanh số (gồm thuế)",
+    totalSalesExcl: "Tổng doanh số (chưa thuế)",
+    foodSalesIncl: "Doanh số đồ ăn (gồm thuế)",
+    foodSalesExcl: "Doanh số đồ ăn (chưa thuế)",
+    drinkSalesIncl: "Doanh số đồ uống (gồm thuế)",
+    drinkSalesExcl: "Doanh số đồ uống (chưa thuế)",
+    paymentCash: "Tiền mặt",
+    paymentQr: "QR",
+    paymentCard: "Thẻ tín dụng",
+    discountAmount: "Số tiền giảm giá",
+    depositAmount: "Số tiền nhập",
+    pettyCashAmount: "Tiền quỹ nhỏ sử dụng",
+    copyReportBtn: "Sao chép báo cáo (tiếng Nhật)",
+    msgReportCopied: "Đã sao chép báo cáo vào clipboard",
     yearMonth: "Tháng",
     salesTargets: "Mục tiêu doanh số",
     foodSalesTarget: "Mục tiêu đồ ăn",
@@ -417,7 +431,21 @@ const I18N = {
     foodSales: "フード売上",
     drinkSales: "ドリンク売上",
     otherSales: "その他売上 (POS外)",
-    customers: "客数",
+    customers: "ご来店人数",
+    totalSalesIncl: "売上合計（税込）",
+    totalSalesExcl: "売上合計（税抜）",
+    foodSalesIncl: "フード売上（税込）",
+    foodSalesExcl: "フード売上（税抜）",
+    drinkSalesIncl: "ドリンク売上（税込）",
+    drinkSalesExcl: "ドリンク売上（税抜）",
+    paymentCash: "売上 現金",
+    paymentQr: "売上 QR",
+    paymentCard: "売上 クレジットカード",
+    discountAmount: "割引金額",
+    depositAmount: "入金金額",
+    pettyCashAmount: "小口使用金額",
+    copyReportBtn: "日本語の報告書をコピー",
+    msgReportCopied: "報告書をクリップボードにコピーしました",
     yearMonth: "対象月",
     salesTargets: "売上目標",
     foodSalesTarget: "フード売上目標",
@@ -2792,6 +2820,19 @@ function renderDailySalesList(items) {
       row3.appendChild(s);
     }
 
+    const actions = document.createElement("div");
+    actions.className = "tx-card-actions";
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "btn btn-ghost btn-sm";
+    copyBtn.textContent = "📋 " + t("copyReportBtn");
+    copyBtn.addEventListener("click", async () => {
+      const text = buildDailySalesReport(it);
+      const ok = await copyTextToClipboard(text);
+      showToast(ok ? t("msgReportCopied") : t("msgError"), ok ? "success" : "error");
+    });
+    actions.appendChild(copyBtn);
+
     const del = document.createElement("button");
     del.type = "button";
     del.className = "tx-card-delete";
@@ -2807,6 +2848,7 @@ function renderDailySalesList(items) {
 
     card.appendChild(row1);
     card.appendChild(row3);
+    card.appendChild(actions);
     card.appendChild(del);
     root.appendChild(card);
   });
@@ -2836,18 +2878,85 @@ function closeDailySalesModal() {
   document.getElementById("dailySalesModal").classList.add("hidden");
 }
 
-document.getElementById("dailySalesForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
+function readDailySalesForm() {
   const $ = (id) => document.getElementById(id).value;
-  const payload = {
+  const num = (id) => Number($(id)) || 0;
+  return {
     store: $("dsStore").trim(),
     date: $("dsDate"),
-    foodSales: $("dsFoodSales") || 0,
-    drinkSales: $("dsDrinkSales") || 0,
-    otherSales: $("dsOtherSales") || 0,
-    customers: $("dsCustomers") || 0,
+    totalSalesIncl: num("dsTotalSalesIncl"),
+    totalSalesExcl: num("dsTotalSalesExcl"),
+    foodSalesIncl: num("dsFoodSalesIncl"),
+    foodSalesExcl: num("dsFoodSalesExcl"),
+    drinkSalesIncl: num("dsDrinkSalesIncl"),
+    drinkSalesExcl: num("dsDrinkSalesExcl"),
+    paymentCash: num("dsPaymentCash"),
+    paymentQr: num("dsPaymentQr"),
+    paymentCard: num("dsPaymentCard"),
+    discountAmount: num("dsDiscountAmount"),
+    depositAmount: num("dsDepositAmount"),
+    pettyCashAmount: num("dsPettyCashAmount"),
+    customers: num("dsCustomers"),
     note: $("dsNote").trim(),
   };
+}
+
+function buildDailySalesReport(p) {
+  const yen = (v) => (Number(v) || 0).toLocaleString("ja-JP") + " đ";
+  const lines = [
+    "【日次売上報告】",
+    `店舗: ${p.store || "(未選択)"}`,
+    `日付: ${p.date || "(未入力)"}`,
+    "",
+    "▼ 売上",
+    `売上合計（税込）: ${yen(p.totalSalesIncl)}`,
+    `売上合計（税抜）: ${yen(p.totalSalesExcl)}`,
+    `フード売上（税込）: ${yen(p.foodSalesIncl)}`,
+    `フード売上（税抜）: ${yen(p.foodSalesExcl)}`,
+    `ドリンク売上（税込）: ${yen(p.drinkSalesIncl)}`,
+    `ドリンク売上（税抜）: ${yen(p.drinkSalesExcl)}`,
+    "",
+    "▼ 支払内訳",
+    `現金: ${yen(p.paymentCash)}`,
+    `QR: ${yen(p.paymentQr)}`,
+    `クレジットカード: ${yen(p.paymentCard)}`,
+    "",
+    "▼ その他",
+    `割引金額: ${yen(p.discountAmount)}`,
+    `入金金額: ${yen(p.depositAmount)}`,
+    `小口使用金額: ${yen(p.pettyCashAmount)}`,
+    `ご来店人数: ${(Number(p.customers) || 0).toLocaleString("ja-JP")} 人`,
+  ];
+  if (p.note) {
+    lines.push("", `備考: ${p.note}`);
+  }
+  return lines.join("\n");
+}
+
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) { /* fall through */ }
+  // Fallback: textarea + execCommand for non-secure context / older browsers
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+document.getElementById("dailySalesForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const payload = readDailySalesForm();
   if (!payload.store || !payload.date) {
     showToast(t("msgRequiredFields"), "error");
     return;
