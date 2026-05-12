@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbwR2ouMmkx3ZPPof0B_6Pt7XhAMLk1DzhfD7krxb_hElwWc4GAIw3RdnXjrlBXp3GfJ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzasofvfZz261o7N12PSVZOHHS0i8LAVYvyZF90odP4GleZ-1e8uhrK7IwEZ0O11tPb/exec";
 
 // ============================================================
 // PWA: register service worker so the app is installable on home screen
@@ -163,6 +163,16 @@ const I18N = {
     pettyCashAmount: "Tiền quỹ nhỏ sử dụng",
     copyReportBtn: "Sao chép báo cáo (tiếng Nhật)",
     msgReportCopied: "Đã sao chép báo cáo vào clipboard",
+    dashPaymentsLabel: "Cơ cấu thanh toán",
+    dashPaymentsSub: "(Tiền mặt + QR + Thẻ)",
+    dashOtherLabel: "Khác",
+    dashOtherSub: "Giảm giá / Nhập tiền / Quỹ nhỏ",
+    dashSalesInclLabel: "Gồm thuế",
+    dashSalesExclLabel: "Chưa thuế",
+    dashRangeLabel: "Kỳ",
+    dashRangeToday: "Hôm nay",
+    dashRangeThisMonth: "Tháng này",
+    dashRangeLastMonth: "Tháng trước",
     yearMonth: "Tháng",
     salesTargets: "Mục tiêu doanh số",
     foodSalesTarget: "Mục tiêu đồ ăn",
@@ -446,6 +456,16 @@ const I18N = {
     pettyCashAmount: "小口使用金額",
     copyReportBtn: "日本語の報告書をコピー",
     msgReportCopied: "報告書をクリップボードにコピーしました",
+    dashPaymentsLabel: "支払方法内訳",
+    dashPaymentsSub: "(現金 + QR + クレジットカード)",
+    dashOtherLabel: "その他",
+    dashOtherSub: "割引 / 入金 / 小口使用",
+    dashSalesInclLabel: "税込",
+    dashSalesExclLabel: "税抜",
+    dashRangeLabel: "期間",
+    dashRangeToday: "本日",
+    dashRangeThisMonth: "今月",
+    dashRangeLastMonth: "先月",
     yearMonth: "対象月",
     salesTargets: "売上目標",
     foodSalesTarget: "フード売上目標",
@@ -2512,8 +2532,46 @@ function renderUserMasterList(list) {
 // Store dashboard
 // ============================================================
 let dashStore = "";
-let dashYear = null;
-let dashMonth = null; // 1-12
+let dashDateFrom = null; // "yyyy-MM-dd"
+let dashDateTo = null;   // "yyyy-MM-dd"
+
+function dashFmtDateInput(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Quick preset helpers
+function setRangeToThisMonth() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth() + 1;
+  const last = new Date(y, m, 0).getDate();
+  dashDateFrom = `${y}-${String(m).padStart(2, "0")}-01`;
+  dashDateTo = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  syncRangeInputs();
+}
+
+function setRangeToLastMonth() {
+  const now = new Date();
+  let y = now.getFullYear(), m = now.getMonth(); // now.getMonth() returns 0-11; that IS last month (0-indexed). adjust below.
+  if (m === 0) { m = 12; y -= 1; } // January -> December prev year
+  const last = new Date(y, m, 0).getDate();
+  dashDateFrom = `${y}-${String(m).padStart(2, "0")}-01`;
+  dashDateTo = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  syncRangeInputs();
+}
+
+function setRangeToToday() {
+  const today = dashFmtDateInput(new Date());
+  dashDateFrom = today;
+  dashDateTo = today;
+  syncRangeInputs();
+}
+
+function syncRangeInputs() {
+  const fromEl = document.getElementById("dashDateFrom");
+  const toEl = document.getElementById("dashDateTo");
+  if (fromEl) fromEl.value = dashDateFrom;
+  if (toEl) toEl.value = dashDateTo;
+}
 
 function fmtPct(v) {
   return ((v || 0) * 100).toFixed(1) + "%";
@@ -2527,13 +2585,8 @@ function pctValueFmt(v) {
 function enterDashboardScreen() {
   loadStores().then(() => {
     fillSelectFromMaster("dashStoreFilter", txStores, "dashSelectStore", { noPlaceholder: true });
-    if (dashYear === null) {
-      const now = new Date();
-      dashYear = now.getFullYear();
-      dashMonth = now.getMonth() + 1;
-    }
-    document.getElementById("dashMonth").value =
-      `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+    if (!dashDateFrom || !dashDateTo) setRangeToThisMonth();
+    else syncRangeInputs();
     // Sync dashStore with whatever the dropdown ended up selecting
     const filterVal = document.getElementById("dashStoreFilter").value;
     if (filterVal) dashStore = filterVal;
@@ -2552,36 +2605,48 @@ document.getElementById("dashStoreFilter").addEventListener("change", (e) => {
   else { renderDashboardEmpty(); renderDailySalesList([]); }
 });
 
-document.getElementById("dashMonth").addEventListener("change", (e) => {
-  const v = e.target.value; // yyyy-MM
-  if (/^\d{4}-\d{2}$/.test(v)) {
-    dashYear = parseInt(v.slice(0, 4), 10);
-    dashMonth = parseInt(v.slice(5, 7), 10);
-    if (dashStore) reloadDashboard();
-  }
-});
+function handleRangeChange() {
+  const fromEl = document.getElementById("dashDateFrom");
+  const toEl = document.getElementById("dashDateTo");
+  let from = fromEl.value;
+  let to = toEl.value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return;
+  // Swap if reversed
+  if (from > to) { const tmp = from; from = to; to = tmp; fromEl.value = from; toEl.value = to; }
+  dashDateFrom = from;
+  dashDateTo = to;
+  if (dashStore) reloadDashboard();
+}
 
-document.getElementById("dashPrevMonth").addEventListener("click", () => {
-  dashMonth -= 1;
-  if (dashMonth < 1) { dashMonth = 12; dashYear -= 1; }
-  document.getElementById("dashMonth").value =
-    `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+document.getElementById("dashDateFrom").addEventListener("change", handleRangeChange);
+document.getElementById("dashDateTo").addEventListener("change", handleRangeChange);
+
+document.getElementById("dashRangeToday").addEventListener("click", () => {
+  setRangeToToday();
   if (dashStore) reloadDashboard();
 });
 
-document.getElementById("dashNextMonth").addEventListener("click", () => {
-  dashMonth += 1;
-  if (dashMonth > 12) { dashMonth = 1; dashYear += 1; }
-  document.getElementById("dashMonth").value =
-    `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+document.getElementById("dashRangeThisMonth").addEventListener("click", () => {
+  setRangeToThisMonth();
+  if (dashStore) reloadDashboard();
+});
+
+document.getElementById("dashRangeLastMonth").addEventListener("click", () => {
+  setRangeToLastMonth();
   if (dashStore) reloadDashboard();
 });
 
 async function reloadDashboard() {
-  if (!dashStore || !dashYear || !dashMonth) return;
+  if (!dashStore) return;
+  if (!dashDateFrom || !dashDateTo) setRangeToThisMonth();
+  const params = {
+    store: dashStore,
+    dateFrom: dashDateFrom,
+    dateTo: dashDateTo,
+  };
   const [dash, dailyList] = await Promise.all([
-    api("getDashboard", { store: dashStore, year: dashYear, month: dashMonth }),
-    api("listDailySales", { store: dashStore, year: dashYear, month: dashMonth }),
+    api("getDashboard", params),
+    api("listDailySales", params),
   ]);
   if (dash && dash.success) renderDashboard(dash);
   renderDailySalesList((dailyList && dailyList.items) || []);
@@ -2596,7 +2661,28 @@ function renderDashboard(d) {
   const root = document.getElementById("dashContent");
   root.innerHTML = "";
 
-  // Sales card
+  // Range banner — shows the active date range (only useful when not full month)
+  if (d.dateFrom && d.dateTo) {
+    const banner = document.createElement("div");
+    banner.className = "dash-range-banner";
+    const rangeText = (d.dateFrom === d.dateTo)
+      ? fmtDate(d.dateFrom)
+      : `${fmtDate(d.dateFrom)} 〜 ${fmtDate(d.dateTo)}`;
+    const dayInfo = (d.totalRangeDays && d.totalRangeDays > 0)
+      ? ` (${d.totalRangeDays}日間 / 経過${d.elapsedRangeDays}日)`
+      : "";
+    banner.textContent = `${t("dashRangeLabel")}: ${rangeText}${dayInfo}`;
+    root.appendChild(banner);
+  }
+
+  // Sales card — 税抜を主表示、税込をサブ表示
+  // (税抜の値が0の場合は legacy フィールド d.sales.total/food/drink にフォールバック)
+  const salesExclTotal = d.sales.totalExcl || d.sales.total || 0;
+  const salesInclTotal = d.sales.totalIncl || 0;
+  const salesFoodExcl  = d.sales.foodExcl  || d.sales.food  || 0;
+  const salesFoodIncl  = d.sales.foodIncl  || 0;
+  const salesDrinkExcl = d.sales.drinkExcl || d.sales.drink || 0;
+  const salesDrinkIncl = d.sales.drinkIncl || 0;
   const salesCard = document.createElement("div");
   salesCard.className = "dash-card span-2";
   salesCard.innerHTML = `
@@ -2606,16 +2692,23 @@ function renderDashboard(d) {
         <div class="dash-card-sub">${t("dashSalesSub")}</div>
       </div>
       <div class="dash-card-value-wrap">
-        <div class="dash-card-value positive">${fmtVndCompact(d.sales.total)}</div>
+        <div class="dash-card-value positive">${fmtVndCompact(salesExclTotal)}</div>
+        <span class="dash-card-target">${t("dashSalesInclLabel")} ${fmtVndCompact(salesInclTotal)}</span>
       </div>
     </div>
     <div class="dash-row">
       <span class="dash-row-label">${t("dashFood")}</span>
-      <span class="dash-row-value">${fmtVndCompact(d.sales.food)}</span>
+      <span class="dash-row-value">
+        ${fmtVndCompact(salesFoodExcl)}
+        <span class="dash-row-target-label">/ ${t("dashSalesInclLabel")} ${fmtVndCompact(salesFoodIncl)}</span>
+      </span>
     </div>
     <div class="dash-row">
       <span class="dash-row-label">${t("dashDrink")}</span>
-      <span class="dash-row-value">${fmtVndCompact(d.sales.drink)}</span>
+      <span class="dash-row-value">
+        ${fmtVndCompact(salesDrinkExcl)}
+        <span class="dash-row-target-label">/ ${t("dashSalesInclLabel")} ${fmtVndCompact(salesDrinkIncl)}</span>
+      </span>
     </div>
     ${d.sales.other ? `<div class="dash-row">
       <span class="dash-row-label">${t("otherSales")}</span>
@@ -2627,6 +2720,61 @@ function renderDashboard(d) {
     </div>
   `;
   root.appendChild(salesCard);
+
+  // Payments card (現金 / QR / クレジットカード)
+  const pay = d.payments || { cash: 0, qr: 0, card: 0, total: 0, cashRatio: 0, qrRatio: 0, cardRatio: 0 };
+  const paymentsCard = document.createElement("div");
+  paymentsCard.className = "dash-card";
+  paymentsCard.innerHTML = `
+    <div class="dash-card-header">
+      <div>
+        <div class="dash-card-label">${t("dashPaymentsLabel")}</div>
+        <div class="dash-card-sub">${t("dashPaymentsSub")}</div>
+      </div>
+      <div class="dash-card-value-wrap">
+        <div class="dash-card-value">${fmtVndCompact(pay.total)}</div>
+      </div>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("paymentCash")}</span>
+      <span class="dash-row-value">${fmtVndCompact(pay.cash)} <span class="dash-row-target-label">/ ${pctValueFmt(pay.cashRatio * 100)}</span></span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("paymentQr")}</span>
+      <span class="dash-row-value">${fmtVndCompact(pay.qr)} <span class="dash-row-target-label">/ ${pctValueFmt(pay.qrRatio * 100)}</span></span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("paymentCard")}</span>
+      <span class="dash-row-value">${fmtVndCompact(pay.card)} <span class="dash-row-target-label">/ ${pctValueFmt(pay.cardRatio * 100)}</span></span>
+    </div>
+  `;
+  root.appendChild(paymentsCard);
+
+  // Other card (割引 / 入金 / 小口使用)
+  const oth = d.other || { discount: 0, deposit: 0, pettyCash: 0 };
+  const otherCard = document.createElement("div");
+  otherCard.className = "dash-card";
+  otherCard.innerHTML = `
+    <div class="dash-card-header">
+      <div>
+        <div class="dash-card-label">${t("dashOtherLabel")}</div>
+        <div class="dash-card-sub">${t("dashOtherSub")}</div>
+      </div>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("discountAmount")}</span>
+      <span class="dash-row-value">${fmtVndCompact(oth.discount)}</span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("depositAmount")}</span>
+      <span class="dash-row-value">${fmtVndCompact(oth.deposit)}</span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-row-label">${t("pettyCashAmount")}</span>
+      <span class="dash-row-value">${fmtVndCompact(oth.pettyCash)}</span>
+    </div>
+  `;
+  root.appendChild(otherCard);
 
   // Achievement card
   const achCard = document.createElement("div");
@@ -2777,7 +2925,8 @@ function renderDailySalesList(items) {
     return;
   }
   items.forEach((it) => {
-    const total = it.foodSales + it.drinkSales + it.otherSales;
+    const exclTotal = it.totalSalesExcl || (it.foodSales + it.drinkSales + it.otherSales);
+    const inclTotal = it.totalSalesIncl || 0;
     const card = document.createElement("div");
     card.className = "tx-card";
 
@@ -2788,25 +2937,57 @@ function renderDailySalesList(items) {
     date.textContent = fmtDate(it.date);
     const amt = document.createElement("span");
     amt.className = "tx-card-amount";
-    amt.textContent = fmtVndCompact(total);
+    amt.textContent = fmtVndCompact(exclTotal) + (inclTotal ? ` (${t("dashSalesInclLabel")} ${fmtVndCompact(inclTotal)})` : "");
     row1.appendChild(date);
     row1.appendChild(amt);
 
     const row3 = document.createElement("div");
     row3.className = "tx-card-row3";
-    if (it.foodSales) {
+    const foodExcl = it.foodSalesExcl || it.foodSales;
+    const drinkExcl = it.drinkSalesExcl || it.drinkSales;
+    if (foodExcl) {
       const s = document.createElement("span");
-      s.textContent = `${t("dashFood")} ${fmtVndCompact(it.foodSales)}`;
+      s.textContent = `${t("dashFood")} ${fmtVndCompact(foodExcl)}`;
       row3.appendChild(s);
     }
-    if (it.drinkSales) {
+    if (drinkExcl) {
       const s = document.createElement("span");
-      s.textContent = `${t("dashDrink")} ${fmtVndCompact(it.drinkSales)}`;
+      s.textContent = `${t("dashDrink")} ${fmtVndCompact(drinkExcl)}`;
       row3.appendChild(s);
     }
     if (it.otherSales) {
       const s = document.createElement("span");
       s.textContent = `${t("otherSales")} ${fmtVndCompact(it.otherSales)}`;
+      row3.appendChild(s);
+    }
+    if (it.paymentCash) {
+      const s = document.createElement("span");
+      s.textContent = `💴 ${fmtVndCompact(it.paymentCash)}`;
+      row3.appendChild(s);
+    }
+    if (it.paymentQr) {
+      const s = document.createElement("span");
+      s.textContent = `📱 ${fmtVndCompact(it.paymentQr)}`;
+      row3.appendChild(s);
+    }
+    if (it.paymentCard) {
+      const s = document.createElement("span");
+      s.textContent = `💳 ${fmtVndCompact(it.paymentCard)}`;
+      row3.appendChild(s);
+    }
+    if (it.discountAmount) {
+      const s = document.createElement("span");
+      s.textContent = `${t("discountAmount")} ${fmtVndCompact(it.discountAmount)}`;
+      row3.appendChild(s);
+    }
+    if (it.depositAmount) {
+      const s = document.createElement("span");
+      s.textContent = `${t("depositAmount")} ${fmtVndCompact(it.depositAmount)}`;
+      row3.appendChild(s);
+    }
+    if (it.pettyCashAmount) {
+      const s = document.createElement("span");
+      s.textContent = `${t("pettyCashAmount")} ${fmtVndCompact(it.pettyCashAmount)}`;
       row3.appendChild(s);
     }
     if (it.customers) {
@@ -2984,8 +3165,8 @@ async function openMonthlyTargetModal() {
   }
   document.getElementById("monthlyTargetForm").reset();
   fillSelectFromMaster("mtStore", txStores, "selectStore");
-  const ym = (dashYear && dashMonth)
-    ? `${dashYear}-${String(dashMonth).padStart(2, "0")}`
+  const ym = dashDateFrom
+    ? dashDateFrom.slice(0, 7)
     : (function () {
         const t = new Date();
         return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`;
@@ -3048,11 +3229,11 @@ document.getElementById("laborCostCancel").addEventListener("click", closeLaborC
 document.querySelector("#laborCostModal .modal-backdrop").addEventListener("click", closeLaborCostModal);
 
 function openLaborCostModal(currentValue) {
-  if (!dashStore || !dashYear || !dashMonth) {
+  if (!dashStore || !dashDateFrom) {
     showToast(t("dashSelectFirst"), "error");
     return;
   }
-  const ym = `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+  const ym = dashDateFrom.slice(0, 7);
   document.getElementById("laborCostContext").textContent = `${dashStore} / ${ym}`;
   document.getElementById("lcAmount").value = currentValue || "";
   document.getElementById("laborCostModal").classList.remove("hidden");
@@ -3065,7 +3246,7 @@ function closeLaborCostModal() {
 document.getElementById("laborCostForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const amount = document.getElementById("lcAmount").value || 0;
-  const ym = `${dashYear}-${String(dashMonth).padStart(2, "0")}`;
+  const ym = dashDateFrom.slice(0, 7);
   const r = await api("updateMonthlyLaborCost", {
     store: dashStore,
     yearMonth: ym,

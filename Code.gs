@@ -1429,12 +1429,20 @@ function listDailySales(body) {
   var store = (body.store || "").toString();
   var year = parseInt(body.year, 10);
   var month = parseInt(body.month, 10);
-  if (!store || !year || !month) return { success: false, message: "Missing fields" };
+  var dateFrom = (body.dateFrom || "").toString();
+  var dateTo = (body.dateTo || "").toString();
+  if (!store) return { success: false, message: "Missing fields" };
+  // dateFrom/dateTo takes precedence; fallback to month-prefix matching for back-compat
+  var prefix = (year && month) ? (year + "-" + (month < 10 ? "0" + month : "" + month)) : "";
 
-  var prefix = year + "-" + (month < 10 ? "0" + month : "" + month);
   var rows = getAllRows(getSheet(DAILY_SALES_SHEET));
   var filtered = rows.filter(function (r) {
-    return String(r.store) === store && normalizeDate(r.date).indexOf(prefix) === 0;
+    if (String(r.store) !== store) return false;
+    var d = normalizeDate(r.date);
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo && d > dateTo) return false;
+    if (!dateFrom && !dateTo && prefix && d.indexOf(prefix) !== 0) return false;
+    return true;
   });
   filtered.sort(function (a, b) {
     var da = normalizeDate(a.date), db = normalizeDate(b.date);
@@ -1672,34 +1680,61 @@ function updateMonthlyLaborCost(body) {
   }
 }
 
-// Aggregate dashboard KPIs for a (store, year, month).
+// Aggregate dashboard KPIs for a (store, dateFrom..dateTo).
 // Reads DailySales, Purchases, MonthlyTargets and returns derived metrics.
+// Monthly target lookup uses the month containing `dateFrom` — that's the
+// "context month" for monthly goal comparisons.
 function getDashboard(body) {
   var store = (body.store || "").toString();
-  var year = parseInt(body.year, 10);
-  var month = parseInt(body.month, 10);
-  if (!store || !year || !month) return { success: false, message: "Missing fields" };
-
+  var dateFrom = (body.dateFrom || "").toString();
+  var dateTo = (body.dateTo || "").toString();
+  if (!store) return { success: false, message: "Missing fields" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+    return { success: false, message: "Missing or invalid dateFrom/dateTo" };
+  }
+  if (dateFrom > dateTo) { var _tmp = dateFrom; dateFrom = dateTo; dateTo = _tmp; }
+  // Derive context (year, month) from dateFrom for monthly target lookup
+  var year = parseInt(dateFrom.slice(0, 4), 10);
+  var month = parseInt(dateFrom.slice(5, 7), 10);
   var yearMonth = year + "-" + (month < 10 ? "0" + month : "" + month);
+  function inRange(d) { return d >= dateFrom && d <= dateTo; }
 
   // Sales (from DailySales)
   var dailyRows = getAllRows(getSheet(DAILY_SALES_SHEET));
   var monthlyDaily = dailyRows.filter(function (r) {
-    return String(r.store) === store && normalizeDate(r.date).indexOf(yearMonth) === 0;
+    return String(r.store) === store && inRange(normalizeDate(r.date));
   });
   var foodSales = 0, drinkSales = 0, otherSales = 0, customers = 0;
+  var foodSalesIncl = 0, foodSalesExcl = 0;
+  var drinkSalesIncl = 0, drinkSalesExcl = 0;
+  var totalSalesIncl = 0, totalSalesExcl = 0;
+  var paymentCash = 0, paymentQr = 0, paymentCard = 0;
+  var discountAmount = 0, depositAmount = 0, pettyCashAmount = 0;
   monthlyDaily.forEach(function (r) {
     foodSales += _toNum(r.foodSales);
     drinkSales += _toNum(r.drinkSales);
     otherSales += _toNum(r.otherSales);
     customers += _toNum(r.customers);
+    foodSalesIncl += _toNum(r.foodSalesIncl);
+    foodSalesExcl += _toNum(r.foodSalesExcl);
+    drinkSalesIncl += _toNum(r.drinkSalesIncl);
+    drinkSalesExcl += _toNum(r.drinkSalesExcl);
+    totalSalesIncl += _toNum(r.totalSalesIncl);
+    totalSalesExcl += _toNum(r.totalSalesExcl);
+    paymentCash += _toNum(r.paymentCash);
+    paymentQr += _toNum(r.paymentQr);
+    paymentCard += _toNum(r.paymentCard);
+    discountAmount += _toNum(r.discountAmount);
+    depositAmount += _toNum(r.depositAmount);
+    pettyCashAmount += _toNum(r.pettyCashAmount);
   });
   var totalSales = foodSales + drinkSales + otherSales;
+  var paymentTotal = paymentCash + paymentQr + paymentCard;
 
-  // Purchases (cost) for the same store + month, by category
+  // Purchases (cost) for the same store within the selected date range
   var purchaseRows = getAllRows(getSheet(PURCHASES_SHEET));
   var monthlyPurchases = purchaseRows.filter(function (r) {
-    return String(r.store) === store && normalizeDate(r.date).indexOf(yearMonth) === 0;
+    return String(r.store) === store && inRange(normalizeDate(r.date));
   });
   var foodPurchases = 0, drinkPurchases = 0, otherCost = 0;
   monthlyPurchases.forEach(function (r) {
@@ -1765,23 +1800,38 @@ function getDashboard(body) {
   var laborCostRatioTarget = target ? _toNum(target.laborCostRatioTarget) : 0;
   var otherLaborCost = target ? _toNum(target.monthlyLaborCost) : 0;
 
-  // Attendance-derived labor cost (uses each user's hourlyRate and store)
-  var attLabor = calcAttendanceLaborCost(store, year, month);
-  var totalLaborCost = otherLaborCost + attLabor.cost;
+  // Attendance-derived labor cost — calculated only for shifts whose clock_in
+  // falls within the selected date range so it stays consistent with sales.
+  var attLabor = calcAttendanceLaborCost(store, year, month, dateFrom, dateTo);
+  // Manual "other" labor cost is set monthly — pro-rate to the range share.
+  var daysInMonthForLabor = new Date(year, month, 0).getDate();
+  var laborPart = (totalRangeDays > 0 && daysInMonthForLabor > 0)
+    ? Math.min(totalRangeDays, daysInMonthForLabor) / daysInMonthForLabor
+    : 0;
+  var otherLaborCostPart = otherLaborCost * laborPart;
+  var totalLaborCost = otherLaborCostPart + attLabor.cost;
 
-  // Days for "todayDay" pace calculation
-  var now = new Date();
-  var nowYM = Utilities.formatDate(now, getSpreadsheetTz(), "yyyy-MM");
+  // Pace calc — number of days in [dateFrom, dateTo] that have already passed
+  // (i.e., are ≤ today, in the spreadsheet TZ). Then expectedToToday is the
+  // pro-rata share of the monthly target for those elapsed range days.
+  var nowStr = Utilities.formatDate(new Date(), getSpreadsheetTz(), "yyyy-MM-dd");
   var daysInMonth = new Date(year, month, 0).getDate();
-  var todayDay;
-  if (nowYM === yearMonth) {
-    todayDay = now.getDate();
-  } else if (nowYM > yearMonth) {
-    todayDay = daysInMonth;
-  } else {
-    todayDay = 0;
-  }
-  var expectedToToday = salesTarget * (daysInMonth > 0 ? todayDay / daysInMonth : 0);
+  var elapsedRangeDays = 0;
+  var totalRangeDays = 0;
+  (function () {
+    var fromD = new Date(dateFrom + "T00:00:00");
+    var toD = new Date(dateTo + "T00:00:00");
+    var cur = new Date(fromD.getTime());
+    while (cur.getTime() <= toD.getTime()) {
+      totalRangeDays += 1;
+      var s = Utilities.formatDate(cur, getSpreadsheetTz(), "yyyy-MM-dd");
+      if (s <= nowStr) elapsedRangeDays += 1;
+      cur.setDate(cur.getDate() + 1);
+    }
+  })();
+  // Backward-compat field: todayDay used by the frontend's progress label
+  var todayDay = elapsedRangeDays;
+  var expectedToToday = salesTarget * (daysInMonth > 0 ? elapsedRangeDays / daysInMonth : 0);
 
   var profit = totalSales - totalCost - totalLaborCost;
 
@@ -1790,6 +1840,10 @@ function getDashboard(body) {
     yearMonth: yearMonth,
     daysInMonth: daysInMonth,
     todayDay: todayDay,
+    dateFrom: dateFrom,
+    dateTo: dateTo,
+    totalRangeDays: totalRangeDays,
+    elapsedRangeDays: elapsedRangeDays,
     sales: {
       total: totalSales,
       food: foodSales,
@@ -1797,6 +1851,27 @@ function getDashboard(body) {
       other: otherSales,
       customers: customers,
       avgPerCustomer: customers > 0 ? totalSales / customers : 0,
+      // New per-field aggregates from the updated daily-sales form
+      foodIncl: foodSalesIncl,
+      foodExcl: foodSalesExcl,
+      drinkIncl: drinkSalesIncl,
+      drinkExcl: drinkSalesExcl,
+      totalIncl: totalSalesIncl,
+      totalExcl: totalSalesExcl,
+    },
+    payments: {
+      cash: paymentCash,
+      qr: paymentQr,
+      card: paymentCard,
+      total: paymentTotal,
+      cashRatio: paymentTotal > 0 ? paymentCash / paymentTotal : 0,
+      qrRatio: paymentTotal > 0 ? paymentQr / paymentTotal : 0,
+      cardRatio: paymentTotal > 0 ? paymentCard / paymentTotal : 0,
+    },
+    other: {
+      discount: discountAmount,
+      deposit: depositAmount,
+      pettyCash: pettyCashAmount,
     },
     cost: {
       total: totalCost,
@@ -1825,8 +1900,9 @@ function getDashboard(body) {
         ratio: totalSales > 0 ? attLabor.cost / totalSales : 0,
       },
       other: {
-        cost: otherLaborCost,
-        ratio: totalSales > 0 ? otherLaborCost / totalSales : 0,
+        cost: otherLaborCostPart,
+        ratio: totalSales > 0 ? otherLaborCostPart / totalSales : 0,
+        monthlyTotal: otherLaborCost,
       },
       salesPerHour: attLabor.hours > 0 ? totalSales / attLabor.hours : 0,
     },
@@ -1847,9 +1923,13 @@ function getDashboard(body) {
 // subtracts any break intervals. The paid duration is attributed to the
 // month of the clock_in. An unpaired clock_in (=退勤忘れ) is silently
 // dropped — that user's hours for that day are NOT counted.
-function calcAttendanceLaborCost(store, year, month) {
+function calcAttendanceLaborCost(store, year, month, dateFrom, dateTo) {
   var targetYM = year + "-" + (month < 10 ? "0" + month : "" + month);
   var tz = getSpreadsheetTz();
+  // If a date range was passed in, restrict pair attribution to it.
+  // Otherwise fall back to "any shift whose clock_in is in this month".
+  var hasRange = /^\d{4}-\d{2}-\d{2}$/.test(String(dateFrom || "")) &&
+                 /^\d{4}-\d{2}-\d{2}$/.test(String(dateTo || ""));
 
   // Build a map of store-belonging users with their hourly rate
   var userRows = getAllRows(getSheet(USERS_SHEET));
@@ -1899,9 +1979,14 @@ function calcAttendanceLaborCost(store, year, month) {
         breakTotal += (e.ts - breakStart);
         breakStart = null;
       } else if (e.type === "clock_out" && clockIn) {
-        // Attribute the paid duration to the month of the clock_in
-        var inYM = Utilities.formatDate(clockIn, tz, "yyyy-MM");
-        if (inYM === targetYM) {
+        // Attribute the paid duration to the month of the clock_in (or to the
+        // date range if one was provided).
+        var inDate = Utilities.formatDate(clockIn, tz, "yyyy-MM-dd");
+        var inYM = inDate.substring(0, 7);
+        var attribute = hasRange
+          ? (inDate >= dateFrom && inDate <= dateTo)
+          : (inYM === targetYM);
+        if (attribute) {
           var minutes = ((e.ts - clockIn) - breakTotal) / 60000;
           if (minutes < 0) minutes = 0;
           totalMinutes += minutes;

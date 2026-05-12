@@ -304,11 +304,15 @@
 
         <div class="dash-toolbar">
           <select id="dashStoreFilter" class="tx-input"></select>
-          <div class="dash-month-nav">
-            <button type="button" id="dashPrevMonth" class="btn btn-ghost month-btn">«</button>
-            <input type="month" id="dashMonth" class="tx-input dash-month-input" />
-            <button type="button" id="dashNextMonth" class="btn btn-ghost month-btn">»</button>
-          </div>
+        </div>
+        <div class="dash-toolbar dash-date-range">
+          <label class="dash-range-label" data-i18n="dashRangeLabel">期間</label>
+          <input type="date" id="dashDateFrom" class="tx-input dash-date-input" />
+          <span class="dash-range-sep">〜</span>
+          <input type="date" id="dashDateTo" class="tx-input dash-date-input" />
+          <button type="button" id="dashRangeToday" class="btn btn-ghost btn-sm" data-i18n="dashRangeToday">本日</button>
+          <button type="button" id="dashRangeThisMonth" class="btn btn-ghost btn-sm" data-i18n="dashRangeThisMonth">今月</button>
+          <button type="button" id="dashRangeLastMonth" class="btn btn-ghost btn-sm" data-i18n="dashRangeLastMonth">先月</button>
         </div>
 
         <div class="dash-actions">

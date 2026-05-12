@@ -2197,6 +2197,51 @@ textarea:focus {
   font-variant-numeric: tabular-nums;
 }
 
+.dash-date-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.dash-range-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.dash-date-input {
+  flex: 1 1 120px;
+  min-width: 100px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-range-sep {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.dash-date-range .btn-sm {
+  font-size: 12px;
+  padding: 4px 10px;
+  min-height: 0;
+  width: auto;
+}
+
+.dash-range-banner {
+  grid-column: 1 / -1;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
 .dash-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
