@@ -720,20 +720,42 @@ function loginUser(body) {
 // ----------------------------------------------------------------
 // Attendance: record + status
 // ----------------------------------------------------------------
-function getTodayLogs(userId) {
+// Returns the user's "current session" events:
+//   - If there are events after the most recent clock_out (=ongoing shift),
+//     return those. This is what makes 退勤忘れ recoverable: yesterday's
+//     unfinished clock_in keeps the user in `in` state today, so the 退勤
+//     button stays active and pairs with today's clock_out in payroll calc.
+//   - Otherwise (no ongoing shift) return today's events for display.
+// Note: never returns events from previous *completed* shifts on prior days,
+// so the next day's clock_in is allowed as soon as midnight passes.
+function getSessionLogs(userId) {
   var sheet = getSheet(ATT_SHEET);
   var rows = getAllRows(sheet);
   var today = todayStr();
-  return rows
-    .filter(function (r) {
-      return (
-        String(r.userId) === String(userId) &&
-        normalizeDate(r.date) === today
-      );
-    })
+
+  var userEvents = rows
+    .filter(function (r) { return String(r.userId) === String(userId); })
     .sort(function (a, b) {
       return new Date(normalizeTimestamp(a.timestamp)) - new Date(normalizeTimestamp(b.timestamp));
     });
+
+  // Find the position just after the most recent clock_out.
+  // Everything after that index is the in-progress session.
+  var startIdx = 0;
+  for (var i = userEvents.length - 1; i >= 0; i--) {
+    if (String(userEvents[i].type) === "clock_out") {
+      startIdx = i + 1;
+      break;
+    }
+  }
+
+  var ongoing = userEvents.slice(startIdx);
+  if (ongoing.length > 0) return ongoing;
+
+  // No ongoing shift — show today's events for the kiosk log display.
+  return userEvents.filter(function (r) {
+    return normalizeDate(r.date) === today;
+  });
 }
 
 function deriveStatus(todayLogs) {
@@ -781,7 +803,7 @@ function recordAttendance(body) {
   var lock = LockService.getScriptLock();
   lock.waitLock(5000);
   try {
-    var todayLogs = getTodayLogs(userId);
+    var todayLogs = getSessionLogs(userId);
     var status = deriveStatus(todayLogs);
     if (!isAllowedTransition(status, type)) {
       return {
@@ -799,7 +821,7 @@ function recordAttendance(body) {
     var role = user ? String(user.role || "") : "";
     appendTextRow(sheet, [uuid(), userId, type, nowIso(), todayStr(), name, role]);
 
-    var refreshed = getTodayLogs(userId);
+    var refreshed = getSessionLogs(userId);
     return {
       success: true,
       status: deriveStatus(refreshed),
@@ -813,7 +835,7 @@ function recordAttendance(body) {
 function getStatus(body) {
   var userId = (body.userId || "").toString();
   if (!userId) return { success: false, message: "Missing userId" };
-  var todayLogs = getTodayLogs(userId);
+  var todayLogs = getSessionLogs(userId);
   return {
     success: true,
     status: deriveStatus(todayLogs),
@@ -1820,10 +1842,14 @@ function getDashboard(body) {
 }
 
 // Sum attendance-based labor cost for a given store + month.
-// For each user belonging to that store, walk their daily clock_in / clock_out
-// (subtracting break_start..break_end intervals) and multiply by hourlyRate.
+// Pairs each clock_in with the next clock_out for the same user (across day
+// boundaries — supports night shifts like 22:00 -> 06:00 next morning), then
+// subtracts any break intervals. The paid duration is attributed to the
+// month of the clock_in. An unpaired clock_in (=退勤忘れ) is silently
+// dropped — that user's hours for that day are NOT counted.
 function calcAttendanceLaborCost(store, year, month) {
-  var prefix = year + "-" + (month < 10 ? "0" + month : "" + month);
+  var targetYM = year + "-" + (month < 10 ? "0" + month : "" + month);
+  var tz = getSpreadsheetTz();
 
   // Build a map of store-belonging users with their hourly rate
   var userRows = getAllRows(getSheet(USERS_SHEET));
@@ -1837,48 +1863,57 @@ function calcAttendanceLaborCost(store, year, month) {
     }
   });
 
-  // Collect attendance events for those users in the target month
+  // Collect ALL attendance events for those users (no per-month pre-filter —
+  // a night shift's clock_in and clock_out might fall on different months).
   var attRows = getAllRows(getSheet(ATT_SHEET));
-  var byUserDate = {};
+  var byUser = {};
   attRows.forEach(function (r) {
     var uid = String(r.userId);
     if (!userMap[uid]) return;
-    var d = normalizeDate(r.date);
-    if (d.indexOf(prefix) !== 0) return;
-    var key = uid + "|" + d;
-    if (!byUserDate[key]) byUserDate[key] = [];
-    byUserDate[key].push({
-      type: String(r.type),
-      ts: new Date(normalizeTimestamp(r.timestamp)),
-    });
+    var ts = new Date(normalizeTimestamp(r.timestamp));
+    if (isNaN(ts.getTime())) return;
+    if (!byUser[uid]) byUser[uid] = [];
+    byUser[uid].push({ type: String(r.type), ts: ts });
   });
 
   var totalCost = 0;
   var totalMinutes = 0;
-  Object.keys(byUserDate).forEach(function (key) {
-    var uid = key.split("|")[0];
+  Object.keys(byUser).forEach(function (uid) {
     var rate = userMap[uid].hourlyRate;
-    var events = byUserDate[key].sort(function (a, b) { return a.ts - b.ts; });
+    var events = byUser[uid].sort(function (a, b) { return a.ts - b.ts; });
 
-    var minutes = 0;
-    var clockIn = null, breakStart = null;
+    var clockIn = null;
+    var breakStart = null;
+    var breakTotal = 0; // ms of break time accumulated within the current shift
     for (var i = 0; i < events.length; i++) {
       var e = events[i];
       if (e.type === "clock_in") {
+        // Start of a new shift — any orphan state from the prior unmatched
+        // clock_in is discarded (no auto-clock-out by design).
         clockIn = e.ts;
-      } else if (e.type === "clock_out" && clockIn) {
-        minutes += (e.ts - clockIn) / 60000;
-        clockIn = null;
-      } else if (e.type === "break_start") {
+        breakStart = null;
+        breakTotal = 0;
+      } else if (e.type === "break_start" && clockIn) {
         breakStart = e.ts;
       } else if (e.type === "break_end" && breakStart) {
-        minutes -= (e.ts - breakStart) / 60000;
+        breakTotal += (e.ts - breakStart);
         breakStart = null;
+      } else if (e.type === "clock_out" && clockIn) {
+        // Attribute the paid duration to the month of the clock_in
+        var inYM = Utilities.formatDate(clockIn, tz, "yyyy-MM");
+        if (inYM === targetYM) {
+          var minutes = ((e.ts - clockIn) - breakTotal) / 60000;
+          if (minutes < 0) minutes = 0;
+          totalMinutes += minutes;
+          totalCost += (minutes / 60) * rate;
+        }
+        clockIn = null;
+        breakStart = null;
+        breakTotal = 0;
       }
     }
-    if (minutes < 0) minutes = 0;
-    totalMinutes += minutes;
-    totalCost += (minutes / 60) * rate;
+    // If `clockIn` is still set here, the user forgot to clock out for that
+    // shift. By design we do NOT auto-clock-out, so those hours are dropped.
   });
 
   return {
