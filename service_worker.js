@@ -2,7 +2,7 @@
 // Caches static assets so the app is installable / works briefly offline.
 // API calls to Google Apps Script always go to the network.
 
-const CACHE_NAME = "kintai-v10";
+const CACHE_NAME = "kintai-v11";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
