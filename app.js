@@ -171,8 +171,9 @@ const I18N = {
     dashSalesExclLabel: "Chưa thuế",
     dashRangeLabel: "Kỳ",
     dashRangeToday: "Hôm nay",
+    dashRangeYesterday: "Hôm qua",
     dashRangeThisMonth: "Tháng này",
-    dashRangeLastMonth: "Tháng trước",
+    dashTotalSalesLabel: "Doanh số",
     yearMonth: "Tháng",
     salesTargets: "Mục tiêu doanh số",
     foodSalesTarget: "Mục tiêu đồ ăn",
@@ -464,8 +465,9 @@ const I18N = {
     dashSalesExclLabel: "税抜",
     dashRangeLabel: "期間",
     dashRangeToday: "本日",
+    dashRangeYesterday: "昨日",
     dashRangeThisMonth: "今月",
-    dashRangeLastMonth: "先月",
+    dashTotalSalesLabel: "売上",
     yearMonth: "対象月",
     salesTargets: "売上目標",
     foodSalesTarget: "フード売上目標",
@@ -2549,20 +2551,19 @@ function setRangeToThisMonth() {
   syncRangeInputs();
 }
 
-function setRangeToLastMonth() {
-  const now = new Date();
-  let y = now.getFullYear(), m = now.getMonth(); // now.getMonth() returns 0-11; that IS last month (0-indexed). adjust below.
-  if (m === 0) { m = 12; y -= 1; } // January -> December prev year
-  const last = new Date(y, m, 0).getDate();
-  dashDateFrom = `${y}-${String(m).padStart(2, "0")}-01`;
-  dashDateTo = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
-  syncRangeInputs();
-}
-
 function setRangeToToday() {
   const today = dashFmtDateInput(new Date());
   dashDateFrom = today;
   dashDateTo = today;
+  syncRangeInputs();
+}
+
+function setRangeToYesterday() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const y = dashFmtDateInput(d);
+  dashDateFrom = y;
+  dashDateTo = y;
   syncRangeInputs();
 }
 
@@ -2626,13 +2627,13 @@ document.getElementById("dashRangeToday").addEventListener("click", () => {
   if (dashStore) reloadDashboard();
 });
 
-document.getElementById("dashRangeThisMonth").addEventListener("click", () => {
-  setRangeToThisMonth();
+document.getElementById("dashRangeYesterday").addEventListener("click", () => {
+  setRangeToYesterday();
   if (dashStore) reloadDashboard();
 });
 
-document.getElementById("dashRangeLastMonth").addEventListener("click", () => {
-  setRangeToLastMonth();
+document.getElementById("dashRangeThisMonth").addEventListener("click", () => {
+  setRangeToThisMonth();
   if (dashStore) reloadDashboard();
 });
 
@@ -2683,6 +2684,24 @@ function renderDashboard(d) {
   const salesFoodIncl  = d.sales.foodIncl  || 0;
   const salesDrinkExcl = d.sales.drinkExcl || d.sales.drink || 0;
   const salesDrinkIncl = d.sales.drinkIncl || 0;
+
+  // Total Sales card — 税込・税抜 を2列で大きく表示
+  const totalSalesCard = document.createElement("div");
+  totalSalesCard.className = "dash-card span-2 dash-total-sales-card";
+  totalSalesCard.innerHTML = `
+    <div class="dash-card-label">${t("dashTotalSalesLabel")}</div>
+    <div class="dash-total-sales-grid">
+      <div class="dash-total-sales-cell">
+        <div class="dash-total-sales-sublabel">${t("totalSalesIncl")}</div>
+        <div class="dash-total-sales-value">${fmtVndCompact(salesInclTotal)}</div>
+      </div>
+      <div class="dash-total-sales-cell">
+        <div class="dash-total-sales-sublabel">${t("totalSalesExcl")}</div>
+        <div class="dash-total-sales-value positive">${fmtVndCompact(salesExclTotal)}</div>
+      </div>
+    </div>
+  `;
+  root.appendChild(totalSalesCard);
   const salesCard = document.createElement("div");
   salesCard.className = "dash-card span-2";
   salesCard.innerHTML = `

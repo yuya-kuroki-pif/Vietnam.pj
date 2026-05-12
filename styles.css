@@ -2242,6 +2242,41 @@ textarea:focus {
   margin-bottom: 4px;
 }
 
+.dash-total-sales-card {
+  padding: 16px 18px;
+}
+
+.dash-total-sales-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.dash-total-sales-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border-radius: 10px;
+}
+
+.dash-total-sales-sublabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.dash-total-sales-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.dash-total-sales-value.positive { color: var(--success, #16a34a); }
+
 .dash-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
