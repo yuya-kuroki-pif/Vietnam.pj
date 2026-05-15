@@ -9,8 +9,33 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwxAjnytXfiJnNKQM7-Vvca
 // ============================================================
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service_worker.js").catch((err) => {
+    navigator.serviceWorker.register("./service_worker.js").then((reg) => {
+      // Periodically check for an updated SW so long-lived tabs (kiosk) pick
+      // up new versions without needing a manual refresh.
+      setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000); // hourly
+
+      // When a new SW is detected, tell it to take control immediately,
+      // then reload the page so the user sees the new version.
+      reg.addEventListener("updatefound", () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener("statechange", () => {
+          if (newSW.state === "installed" && navigator.serviceWorker.controller) {
+            newSW.postMessage("SKIP_WAITING");
+          }
+        });
+      });
+    }).catch((err) => {
       console.warn("Service worker registration failed:", err);
+    });
+
+    // When the active SW changes (after SKIP_WAITING), reload once so the
+    // page is served by the new worker. Guard against infinite reloads.
+    let _reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (_reloaded) return;
+      _reloaded = true;
+      window.location.reload();
     });
   });
 }
