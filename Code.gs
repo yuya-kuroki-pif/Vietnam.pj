@@ -60,7 +60,7 @@ var PURCHASE_COLUMNS = [
 ];
 
 var PETTY_COLUMNS = [
-  "id", "store", "date", "type", "category", "subCategory",
+  "id", "store", "date", "type", "category", "subCategory", "productName",
   "amount", "taxRate", "paymentMethod", "vendor", "taxCode", "note", "createdAt"
 ];
 
@@ -1200,6 +1200,7 @@ function listPettyCash(body) {
       type: type,
       category: r.category,
       subCategory: r.subCategory,
+      productName: r.productName || "",
       amount: amount,
       taxRate: _toNum(r.taxRate),
       paymentMethod: r.paymentMethod || "",
@@ -1240,6 +1241,7 @@ function registerPettyCash(body) {
       type: type,
       category: category,
       subCategory: (body.subCategory || "").toString(),
+      productName: (body.productName || "").toString(),
       amount: amount,
       taxRate: _toNum(body.taxRate),
       paymentMethod: (body.paymentMethod || "").toString(),

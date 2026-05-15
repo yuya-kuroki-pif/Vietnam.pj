@@ -557,7 +557,8 @@
         <select id="pPaymentMethod">
           <option value=""></option>
           <option value="cash" data-i18n="payCash">Tiền mặt</option>
-          <option value="transfer" data-i18n="payTransfer">Chuyển khoản</option>
+          <option value="transfer" data-i18n="payTransfer">Chuyển khoản ngay</option>
+          <option value="transfer_eom" data-i18n="payTransferEom">Chuyển khoản cuối tháng</option>
           <option value="card" data-i18n="payCard">Thẻ tín dụng/ghi nợ</option>
           <option value="momo" data-i18n="payMomo">Momo</option>
           <option value="zalopay" data-i18n="payZaloPay">ZaloPay</option>
@@ -622,6 +623,9 @@
 
         <label data-i18n="subCategory">Khoản mục phụ</label>
         <input type="text" id="cSubCategory" maxlength="60" />
+
+        <label data-i18n="pettyProductName">購入物名</label>
+        <input type="text" id="cProductName" maxlength="120" />
 
         <label><span data-i18n="amountInclTax">Số tiền (có thuế)</span><span class="required">*</span></label>
         <div class="currency-input">

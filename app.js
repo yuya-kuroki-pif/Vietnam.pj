@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycby3_tc8R9T9MQVkuR8Ercp2iyVeZt5hNd2oitwZYCJQdyvI1dqhp0aoYeFYVC3-Dt2_/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwxAjnytXfiJnNKQM7-VvcaNIdoMx_Wqlq3SInhaC_aB3JNa_fBK8qfkMDL5_HId9ow/exec";
 
 // ============================================================
 // PWA: register service worker so the app is installable on home screen
@@ -217,7 +217,8 @@ const I18N = {
     selectVendor: "-- Chọn nhà cung cấp --",
     paymentMethod: "Phương thức thanh toán",
     payCash: "Tiền mặt",
-    payTransfer: "Chuyển khoản",
+    payTransfer: "Chuyển khoản ngay",
+    payTransferEom: "Chuyển khoản cuối tháng",
     payCard: "Thẻ tín dụng/ghi nợ",
     payMomo: "Momo",
     payZaloPay: "ZaloPay",
@@ -259,6 +260,7 @@ const I18N = {
     unit: "Đơn vị",
     unitPriceLabel: "Đơn giá (đã có thuế)",
     productName: "Tên sản phẩm",
+    pettyProductName: "Tên hàng mua",
     back: "Quay lại",
     close: "Đóng",
     stkLocationDeleteConfirm: "Xóa khu vực này? (Dữ liệu kiểm kê sẽ vẫn còn)",
@@ -511,7 +513,8 @@ const I18N = {
     selectVendor: "-- 取引先を選択 --",
     paymentMethod: "支払い方法",
     payCash: "現金",
-    payTransfer: "銀行振込",
+    payTransfer: "銀行即時振込",
+    payTransferEom: "銀行月末振込",
     payCard: "クレジット/デビットカード",
     payMomo: "Momo",
     payZaloPay: "ZaloPay",
@@ -553,6 +556,7 @@ const I18N = {
     unit: "単位",
     unitPriceLabel: "単価 (税込)",
     productName: "商品名",
+    pettyProductName: "購入物名",
     back: "戻る",
     close: "閉じる",
     stkLocationDeleteConfirm: "この保管場所を削除しますか? (棚卸データは残ります)",
@@ -2022,7 +2026,14 @@ function renderPurchaseList(list) {
     if (p.paymentMethod) {
       const pm = document.createElement("span");
       pm.className = "tx-card-tag";
-      const payKey = "pay" + p.paymentMethod.charAt(0).toUpperCase() + p.paymentMethod.slice(1);
+      // snake_case → camelCase: "transfer_eom" → "TransferEom"
+      const camel = p.paymentMethod
+        .split("_")
+        .map((s, i) => i === 0
+          ? s.charAt(0).toUpperCase() + s.slice(1)
+          : s.charAt(0).toUpperCase() + s.slice(1))
+        .join("");
+      const payKey = "pay" + camel;
       const payLabel = t(payKey);
       pm.textContent = payLabel !== payKey ? payLabel : p.paymentMethod;
       row3.appendChild(pm);
@@ -2111,6 +2122,7 @@ document.getElementById("pettyForm").addEventListener("submit", async (e) => {
     type: pettyType,
     category: $("cCategory"),
     subCategory: $("cSubCategory").trim(),
+    productName: $("cProductName").trim(),
     amount: $("cAmount"),
     taxRate: $("cTaxRate"),
     vendor: $("cVendor").trim(),
@@ -2183,7 +2195,9 @@ function renderPettyList(items) {
     row2.className = "tx-card-row2";
     const catKey = "cat" + (it.category || "").charAt(0).toUpperCase() + (it.category || "").slice(1);
     const catLabel = t(catKey) !== catKey ? t(catKey) : (it.category || "");
-    row2.textContent = catLabel + (it.subCategory ? ` / ${it.subCategory}` : "");
+    row2.textContent = catLabel
+      + (it.subCategory ? ` / ${it.subCategory}` : "")
+      + (it.productName ? ` / ${it.productName}` : "");
 
     const row3 = document.createElement("div");
     row3.className = "tx-card-row3";
