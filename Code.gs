@@ -312,11 +312,13 @@ function getSheet(name) {
   // getSheet(name) is called.
   if (_PREPARED[name]) return sheet;
 
-  // Apply text format on the FIRST getSheet call per session for each
-  // sheet. This guarantees that newly-appended rows don't get re-parsed
-  // as dates/times (which would otherwise flip "2026-05-03" into a Date
-  // value and shift the day on read-back across timezones).
-  if (sheet.getMaxColumns() > 0) {
+  // Apply text format ONLY to freshly-created sheets — once on creation.
+  // For existing sheets we rely on per-row `writeTextRow` (which sets @ on
+  // the target row before writing). Running setNumberFormat over the entire
+  // sheet (1000+ rows × N cols) on every cold start was a major source of
+  // request latency. Users who want to re-apply text format on existing
+  // sheets can run the manual "📋 全シートを整形" menu (formatAllSheets).
+  if (freshlyCreated && sheet.getMaxColumns() > 0) {
     sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).setNumberFormat("@");
   }
 
@@ -471,16 +473,41 @@ function ensureUserColumns(sheet) {
 }
 
 function findUserById(userId) {
+  if (!userId) return null;
+  var key = "user:" + String(userId);
+  var cache = CacheService.getScriptCache();
+  var cached = null;
+  try { cached = cache.get(key); } catch (e) {}
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
   var sheet = getSheet(USERS_SHEET);
   var users = getAllRows(sheet);
   for (var i = 0; i < users.length; i++) {
     if (String(users[i].id) === String(userId)) {
       var u = users[i];
-      if (!u.role) u.role = "user";
-      return u;
+      // Build a compact JSON-safe snapshot (drops _rowIndex, Date objects).
+      var compact = {
+        id: String(u.id || ""),
+        name: String(u.name || ""),
+        email: String(u.email || ""),
+        role: String(u.role || "") || "user",
+        phone: String(u.phone || ""),
+        store: String(u.store || ""),
+        hourlyRate: _toNum(u.hourlyRate),
+      };
+      try { cache.put(key, JSON.stringify(compact), 300); } catch (e) {}
+      return compact;
     }
   }
   return null;
+}
+
+// Helper used by mutations that change a user (delete / register) — drop
+// the cached entry so the next read sees fresh data.
+function _invalidateUserCache(userId) {
+  if (!userId) return;
+  try { CacheService.getScriptCache().remove("user:" + String(userId)); } catch (e) {}
 }
 
 function normalizeDate(v) {
@@ -534,6 +561,31 @@ function appendTextRow(sheet, values) {
   var newRowIdx = sheet.getLastRow() + 1;
   writeTextRow(sheet, newRowIdx, values);
   return newRowIdx;
+}
+
+// Read only the last `maxRows` data rows of a sheet (plus the header row to
+// build the object keys). Assumes append-order = chronological order, which
+// holds for this app (we always append-new-rows). Much faster than getAllRows
+// when the sheet has thousands of rows but we only care about recent activity.
+function getRecentRows(sheet, maxRows) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return [];
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var startRow = Math.max(2, lastRow - maxRows + 1);
+  var numRows = lastRow - startRow + 1;
+  var values = sheet.getRange(startRow, 1, numRows, lastCol).getValues();
+  var rows = [];
+  for (var i = 0; i < values.length; i++) {
+    var row = {};
+    for (var j = 0; j < headers.length; j++) {
+      row[headers[j]] = values[i][j];
+    }
+    row._rowIndex = startRow + i;
+    rows.push(row);
+  }
+  return rows;
 }
 
 function getAllRows(sheet) {
@@ -681,7 +733,9 @@ function listUsers(body) {
 }
 
 function deleteUser(body) {
-  return _deleteFromSheet(USERS_SHEET, (body.id || "").toString());
+  var id = (body.id || "").toString();
+  _invalidateUserCache(id);
+  return _deleteFromSheet(USERS_SHEET, id);
 }
 
 // ----------------------------------------------------------------
@@ -730,7 +784,11 @@ function loginUser(body) {
 // so the next day's clock_in is allowed as soon as midnight passes.
 function getSessionLogs(userId) {
   var sheet = getSheet(ATT_SHEET);
-  var rows = getAllRows(sheet);
+  // Read only the most recent rows — enough to cover any user's ongoing
+  // session + today + yesterday (退勤忘れ復帰用). 1000 rows ≒ a couple of
+  // weeks of punches for a small team. Sessions older than that are
+  // considered abandoned and don't matter for status derivation.
+  var rows = getRecentRows(sheet, 1000);
   var today = todayStr();
 
   var userEvents = rows
@@ -821,9 +879,22 @@ function recordAttendance(body) {
     var user = findUserById(userId);
     var name = user ? String(user.name || "") : "";
     var role = user ? String(user.role || "") : "";
-    appendTextRow(sheet, [uuid(), userId, type, nowIso(), todayStr(), name, role]);
+    var newId = uuid();
+    var newTs = nowIso();
+    var newDate = todayStr();
+    appendTextRow(sheet, [newId, userId, type, newTs, newDate, name, role]);
 
-    var refreshed = getSessionLogs(userId);
+    // Simulate the new event in memory instead of re-reading the whole sheet.
+    // This roughly halves the per-punch latency.
+    var newEvent = { id: newId, userId: userId, type: type, timestamp: newTs, date: newDate };
+    var refreshed;
+    if (type === "clock_in" && status === "finished") {
+      // 退勤後の新シフト開始 → セッションはこの新イベントだけにリセット
+      refreshed = [newEvent];
+    } else {
+      refreshed = todayLogs.concat([newEvent]);
+    }
+
     return {
       success: true,
       status: deriveStatus(refreshed),

@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbwxAjnytXfiJnNKQM7-VvcaNIdoMx_Wqlq3SInhaC_aB3JNa_fBK8qfkMDL5_HId9ow/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz5yPvmzk0kVe-eSSqFa5khu83fNq6VEKaJQCjuho1nI6n6UZv9Cr1NzbupnzVCtl1B/exec";
 
 // ============================================================
 // PWA: register service worker so the app is installable on home screen
@@ -718,7 +718,9 @@ function showToast(message, type = "info") {
 // ============================================================
 // API
 // ============================================================
+let _apiInflight = 0;
 async function api(action, payload = {}) {
+  _apiInflight++;
   showLoading(true);
   try {
     const res = await fetch(API_URL, {
@@ -732,9 +734,31 @@ async function api(action, payload = {}) {
     console.error(err);
     return { success: false, message: t("msgError") };
   } finally {
-    showLoading(false);
+    _apiInflight--;
+    if (_apiInflight === 0) {
+      showLoading(false);
+      document.dispatchEvent(new CustomEvent("apiend"));
+    }
   }
 }
+
+// Auto-disable a form's submit button while any API call is in flight.
+// Listens in the capture phase so it runs before each form's own submit
+// handler (which then awaits the API call).
+document.addEventListener("submit", (e) => {
+  const form = e.target;
+  if (!(form instanceof HTMLFormElement)) return;
+  const btn = form.querySelector('button[type="submit"]');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  const restore = () => { btn.disabled = false; };
+  document.addEventListener("apiend", restore, { once: true });
+  // Failsafe: re-enable after 15s in case no API call ever fires.
+  setTimeout(() => {
+    btn.disabled = false;
+    document.removeEventListener("apiend", restore);
+  }, 15000);
+}, true);
 
 // ============================================================
 // Users (kiosk picker)
@@ -1010,17 +1034,25 @@ async function recordAttendance(type, successKey) {
     showToast(t("msgPickUserFirst"), "error");
     return;
   }
-  const result = await api("record", { userId: attendanceUserId, type });
-  if (result.success) {
-    showToast(t(successKey), "success");
-    currentStatus = result.status;
-    renderLog(result.todayLog || []);
-    updateStatusBadge();
+  // Prevent double-taps while the API call is in flight.
+  const allBtns = ["clockInBtn", "clockOutBtn", "breakStartBtn", "breakEndBtn"]
+    .map((id) => document.getElementById(id));
+  allBtns.forEach((b) => { if (b) b.disabled = true; });
+  try {
+    const result = await api("record", { userId: attendanceUserId, type });
+    if (result.success) {
+      showToast(t(successKey), "success");
+      currentStatus = result.status;
+      renderLog(result.todayLog || []);
+      updateStatusBadge();
+    } else if (result.code === "INVALID_STATE") {
+      showToast(t("msgInvalidAction"), "error");
+    } else {
+      showToast(result.message || t("msgError"), "error");
+    }
+  } finally {
+    // updateButtons() restores the correct state-based disabled set.
     updateButtons();
-  } else if (result.code === "INVALID_STATE") {
-    showToast(t("msgInvalidAction"), "error");
-  } else {
-    showToast(result.message || t("msgError"), "error");
   }
 }
 
