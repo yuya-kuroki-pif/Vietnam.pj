@@ -3105,6 +3105,10 @@ function readDailySalesForm() {
 
 function buildDailySalesReport(p) {
   const yen = (v) => (Number(v) || 0).toLocaleString("ja-JP") + " đ";
+  const customers = Number(p.customers) || 0;
+  // 客単価 = 税抜売上 ÷ 来店人数(0除算ガード)。税抜が0の場合は税込で代替。
+  const baseForAvg = Number(p.totalSalesExcl) || Number(p.totalSalesIncl) || 0;
+  const avgPerCustomer = customers > 0 ? Math.round(baseForAvg / customers) : 0;
   const lines = [
     "【日次売上報告】",
     `店舗: ${p.store || "(未選択)"}`,
@@ -3127,7 +3131,8 @@ function buildDailySalesReport(p) {
     `割引金額: ${yen(p.discountAmount)}`,
     `入金金額: ${yen(p.depositAmount)}`,
     `小口使用金額: ${yen(p.pettyCashAmount)}`,
-    `ご来店人数: ${(Number(p.customers) || 0).toLocaleString("ja-JP")} 人`,
+    `ご来店人数: ${customers.toLocaleString("ja-JP")} 人`,
+    `客単価(税抜): ${yen(avgPerCustomer)}`,
   ];
   if (p.note) {
     lines.push("", `備考: ${p.note}`);
