@@ -73,6 +73,8 @@ const I18N = {
     msgError: "Có lỗi xảy ra. Vui lòng thử lại.",
     msgInvalidAction: "Thao tác không hợp lệ ở trạng thái hiện tại.",
     msgPickUserFirst: "Vui lòng chọn nhân viên trước.",
+    msgConfirmRepeatClockIn: "Hôm nay đã có ghi nhận giờ vào. Bạn vẫn muốn ghi nhận giờ vào thêm một lần nữa?",
+    msgConfirmRepeatClockOut: "Hôm nay đã có ghi nhận giờ ra. Bạn vẫn muốn ghi nhận giờ ra thêm một lần nữa?",
     logEmpty: "Chưa có dữ liệu.",
     logClockIn: "Chấm công vào",
     logClockOut: "Chấm công ra",
@@ -367,6 +369,8 @@ const I18N = {
     msgError: "エラーが発生しました。もう一度お試しください。",
     msgInvalidAction: "現在の状態では実行できない操作です。",
     msgPickUserFirst: "先にユーザーを選択してください。",
+    msgConfirmRepeatClockIn: "本日は既に出勤の打刻があります。再度出勤を記録しますか？",
+    msgConfirmRepeatClockOut: "本日は既に退勤の打刻があります。再度退勤を記録しますか？",
     logEmpty: "データがありません。",
     logClockIn: "出勤",
     logClockOut: "退勤",
@@ -618,6 +622,7 @@ let attendanceUserId = ""; // selected user on attendance tab
 let shiftUserId = ""; // selected user on shift register tab
 let manageFilterUserId = ""; // optional filter on shift manage tab
 let currentStatus = "out"; // out | in | break | finished
+let todayCounts = { clock_in: 0, clock_out: 0, break_start: 0, break_end: 0 };
 let currentTab = "attendance";
 let manageWeekStart = null; // Date object pointing to Monday 00:00 of viewed week
 
@@ -893,6 +898,7 @@ document.getElementById("userPickerAttendance").addEventListener("change", (e) =
 
 function clearAttendanceUI() {
   currentStatus = "out";
+  todayCounts = { clock_in: 0, clock_out: 0, break_start: 0, break_end: 0 };
   updateStatusBadge();
   updateButtons();
   renderLog([]);
@@ -903,6 +909,7 @@ async function refreshStatus() {
   const result = await api("getStatus", { userId: attendanceUserId });
   if (result.success) {
     currentStatus = result.status;
+    todayCounts = result.todayCounts || { clock_in: 0, clock_out: 0, break_start: 0, break_end: 0 };
     renderLog(result.todayLog || []);
     updateStatusBadge();
     updateButtons();
@@ -929,11 +936,13 @@ function updateButtons() {
   const bs = document.getElementById("breakStartBtn");
   const be = document.getElementById("breakEndBtn");
 
+  // All 4 punch types are always allowed; only disabled when no user is picked.
+  // Frontend asks for confirmation when clock_in/out would be a same-day repeat.
   const noUser = !attendanceUserId;
-  ci.disabled = noUser || currentStatus !== "out";
-  co.disabled = noUser || currentStatus !== "in";
-  bs.disabled = noUser || currentStatus !== "in";
-  be.disabled = noUser || currentStatus !== "break";
+  ci.disabled = noUser;
+  co.disabled = noUser;
+  bs.disabled = noUser;
+  be.disabled = noUser;
 }
 
 function renderLog(logs) {
@@ -979,10 +988,17 @@ async function recordAttendance(type, successKey) {
     showToast(t("msgPickUserFirst"), "error");
     return;
   }
+  // Warn when clock_in / clock_out would be a same-day repeat.
+  if (type === "clock_in" && (todayCounts.clock_in || 0) > 0) {
+    if (!confirm(t("msgConfirmRepeatClockIn"))) return;
+  } else if (type === "clock_out" && (todayCounts.clock_out || 0) > 0) {
+    if (!confirm(t("msgConfirmRepeatClockOut"))) return;
+  }
   const result = await api("record", { userId: attendanceUserId, type });
   if (result.success) {
     showToast(t(successKey), "success");
     currentStatus = result.status;
+    todayCounts = result.todayCounts || todayCounts;
     renderLog(result.todayLog || []);
     updateStatusBadge();
     updateButtons();

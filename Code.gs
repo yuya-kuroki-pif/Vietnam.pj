@@ -775,18 +775,27 @@ function deriveStatus(todayLogs) {
   }
 }
 
+// All 4 punch types can be pressed any number of times per day. The frontend
+// shows a "are you sure?" confirm when clock_in/out would be a same-day repeat.
 function isAllowedTransition(currentStatus, type) {
-  switch (type) {
-    case "clock_in":
-      return currentStatus === "out";
-    case "clock_out":
-      return currentStatus === "in";
-    case "break_start":
-      return currentStatus === "in";
-    case "break_end":
-      return currentStatus === "break";
-  }
-  return false;
+  return type === "clock_in" || type === "clock_out" ||
+         type === "break_start" || type === "break_end";
+}
+
+// Count today's events of each type for a user — used by the frontend to
+// detect "duplicate" clock_in/clock_out within a day and prompt confirmation.
+function getTodayEventCounts(userId) {
+  var sheet = getSheet(ATT_SHEET);
+  var rows = getAllRows(sheet);
+  var today = todayStr();
+  var counts = { clock_in: 0, clock_out: 0, break_start: 0, break_end: 0 };
+  rows.forEach(function (r) {
+    if (String(r.userId) !== String(userId)) return;
+    if (normalizeDate(r.date) !== today) return;
+    var t = String(r.type);
+    if (counts.hasOwnProperty(t)) counts[t] += 1;
+  });
+  return counts;
 }
 
 function recordAttendance(body) {
@@ -826,6 +835,7 @@ function recordAttendance(body) {
       success: true,
       status: deriveStatus(refreshed),
       todayLog: refreshed.map(stripRow),
+      todayCounts: getTodayEventCounts(userId),
     };
   } finally {
     lock.releaseLock();
@@ -840,6 +850,7 @@ function getStatus(body) {
     success: true,
     status: deriveStatus(todayLogs),
     todayLog: todayLogs.map(stripRow),
+    todayCounts: getTodayEventCounts(userId),
   };
 }
 
