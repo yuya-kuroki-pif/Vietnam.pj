@@ -876,9 +876,18 @@ function recordAttendance(body) {
     }
 
     var sheet = getSheet(ATT_SHEET);
-    var user = findUserById(userId);
-    var name = user ? String(user.name || "") : "";
-    var role = user ? String(user.role || "") : "";
+    // Prefer name/role supplied by the client (kiosk already knows them from
+    // the user picker) to skip a Users-sheet read entirely. Fall back to
+    // findUserById only when the client didn't include them (older clients).
+    var name = body.name !== undefined ? String(body.name || "") : "";
+    var role = body.role !== undefined ? String(body.role || "") : "";
+    if (!name && !role) {
+      var user = findUserById(userId);
+      if (user) {
+        name = String(user.name || "");
+        role = String(user.role || "");
+      }
+    }
     var newId = uuid();
     var newTs = nowIso();
     var newDate = todayStr();

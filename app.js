@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbz5yPvmzk0kVe-eSSqFa5khu83fNq6VEKaJQCjuho1nI6n6UZv9Cr1NzbupnzVCtl1B/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyErIy8KVRHXspEvSm4dnkFTTPYNpHiRZX9Syw0F2gHggcCuqgJB5Lv8764otBQHq0-/exec";
 
 // ============================================================
 // PWA: register service worker so the app is installable on home screen
@@ -644,6 +644,8 @@ const I18N = {
 let currentLang = localStorage.getItem("lang") || "vi";
 let users = []; // [{id, name, email}]
 let attendanceUserId = ""; // selected user on attendance tab
+let attendanceUserInfo = null; // {name, role} of the selected user — used to
+                                // skip a backend Users-sheet read on every punch
 let shiftUserId = ""; // selected user on shift register tab
 let manageFilterUserId = ""; // optional filter on shift manage tab
 let currentStatus = "out"; // out | in | break | finished
@@ -937,6 +939,10 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
 // ============================================================
 document.getElementById("userPickerAttendance").addEventListener("change", (e) => {
   attendanceUserId = e.target.value;
+  // Capture name/role for the selected user so we can send them with each
+  // punch — this saves a Users-sheet lookup on the backend.
+  const u = users.find((x) => String(x.id) === String(attendanceUserId));
+  attendanceUserInfo = u ? { name: u.name || "", role: u.role || "" } : null;
   if (attendanceUserId) {
     refreshStatus();
   } else {
@@ -946,6 +952,7 @@ document.getElementById("userPickerAttendance").addEventListener("change", (e) =
 
 function clearAttendanceUI() {
   currentStatus = "out";
+  attendanceUserInfo = null;
   updateStatusBadge();
   updateButtons();
   renderLog([]);
@@ -1029,27 +1036,62 @@ function formatTime(iso) {
   return `${hh}:${mm}:${ss}`;
 }
 
+// Derive the status that would result from this action — used for
+// optimistic UI updates so the badge/buttons change before the API responds.
+function predictNextStatus(curr, type) {
+  if (type === "clock_in") return "in";
+  if (type === "clock_out") return "finished";
+  if (type === "break_start") return "break";
+  if (type === "break_end") return "in";
+  return curr;
+}
+
 async function recordAttendance(type, successKey) {
   if (!attendanceUserId) {
     showToast(t("msgPickUserFirst"), "error");
     return;
   }
+
+  // ------- Optimistic UI: update state + show feedback immediately -------
+  const prevStatus = currentStatus;
+  const nextStatus = predictNextStatus(currentStatus, type);
+  currentStatus = nextStatus;
+  updateStatusBadge();
+  // Show success toast immediately — feels instant to the user.
+  showToast(t(successKey), "success");
+
   // Prevent double-taps while the API call is in flight.
   const allBtns = ["clockInBtn", "clockOutBtn", "breakStartBtn", "breakEndBtn"]
     .map((id) => document.getElementById(id));
   allBtns.forEach((b) => { if (b) b.disabled = true; });
+
   try {
-    const result = await api("record", { userId: attendanceUserId, type });
+    const result = await api("record", {
+      userId: attendanceUserId,
+      type,
+      // Supply name/role so the backend doesn't need to query the Users sheet.
+      name: attendanceUserInfo ? attendanceUserInfo.name : "",
+      role: attendanceUserInfo ? attendanceUserInfo.role : "",
+    });
     if (result.success) {
-      showToast(t(successKey), "success");
+      // Reconcile with the backend's authoritative state.
       currentStatus = result.status;
       renderLog(result.todayLog || []);
       updateStatusBadge();
-    } else if (result.code === "INVALID_STATE") {
-      showToast(t("msgInvalidAction"), "error");
     } else {
-      showToast(result.message || t("msgError"), "error");
+      // Revert the optimistic UI change.
+      currentStatus = prevStatus;
+      updateStatusBadge();
+      if (result.code === "INVALID_STATE") {
+        showToast(t("msgInvalidAction"), "error");
+      } else {
+        showToast(result.message || t("msgError"), "error");
+      }
     }
+  } catch (err) {
+    currentStatus = prevStatus;
+    updateStatusBadge();
+    showToast(t("msgError"), "error");
   } finally {
     // updateButtons() restores the correct state-based disabled set.
     updateButtons();
@@ -3899,5 +3941,21 @@ applyLanguage();
 showScreen("dashboardScreen");
 setActiveDrawerItem("dashboard");
 clearAttendanceUI();
+
+// Pre-warm the GAS endpoint with a no-op request so the first real
+// interaction (打刻 / 登録) doesn't pay the cold-start cost. Fired in the
+// background — we don't await it. loadUsers() below also helps warm the
+// instance.
+(function preWarmGas() {
+  try {
+    fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "__ping__" }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch (e) { /* ignore */ }
+})();
+
 loadUsers();
 loadPatterns();

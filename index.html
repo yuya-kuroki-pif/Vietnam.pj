@@ -22,6 +22,11 @@
   <!-- Older Android Chrome standalone hint -->
   <meta name="mobile-web-app-capable" content="yes">
 
+  <!-- Pre-establish connection to Google Apps Script so the first API call
+       is faster (saves TCP + TLS handshake on Vietnam → US round trip). -->
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.googleusercontent.com">
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
