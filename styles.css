@@ -2274,10 +2274,12 @@ textarea:focus {
 }
 
 .dash-total-sales-value {
-  font-size: 22px;
+  font-size: clamp(16px, 4.5vw, 22px);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--text);
+  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .dash-total-sales-value.positive { color: var(--success, #16a34a); }
@@ -2352,12 +2354,14 @@ textarea:focus {
 }
 
 .dash-card-value {
-  font-size: 30px;
+  font-size: clamp(18px, 5vw, 26px);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   line-height: 1.05;
   letter-spacing: -0.5px;
+  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .dash-card-value.positive { color: var(--success); }

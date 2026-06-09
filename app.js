@@ -20,7 +20,7 @@ if ("serviceWorker" in navigator) {
         const newSW = reg.installing;
         if (!newSW) return;
         newSW.addEventListener("statechange", () => {
-          if (newSW.state === "installed" && navigator.serviceWorker.controller) {
+          if (newSW.state === "in stalled" && navigator.serviceWorker.controller) {
             newSW.postMessage("SKIP_WAITING");
           }
         });
@@ -1843,20 +1843,8 @@ let pettyType = "out"; // active type in petty modal
 //   ≥ 1,000,000      → "X.YM đ" / "XM đ" (e.g. "1.5M đ", "25M đ")
 function fmtVnd(n) {
   const v = Math.round(Number(n) || 0);
-  if (v === 0) return "0 đ";
-  const sign = v < 0 ? "-" : "";
-  const abs = Math.abs(v);
-  if (abs >= 1000000) {
-    const m = abs / 1000000;
-    const s = m >= 10 ? m.toFixed(0) : m.toFixed(1).replace(/\.0$/, "");
-    return sign + s + "M đ";
-  }
-  if (abs >= 1000) {
-    const k = abs / 1000;
-    const s = k >= 10 ? k.toFixed(0) : k.toFixed(1).replace(/\.0$/, "");
-    return sign + s + "k đ";
-  }
-  return sign + abs.toLocaleString("vi-VN") + " đ";
+  // 数値を省略せず "1.500.000 đ" のような完全表示にする(ベトナム式は "." 区切り)。
+  return v.toLocaleString("vi-VN") + " đ";
 }
 
 // Backward-compatible alias — older code paths still call fmtVndCompact.
