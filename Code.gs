@@ -1886,20 +1886,9 @@ function getDashboard(body) {
   var laborCostRatioTarget = target ? _toNum(target.laborCostRatioTarget) : 0;
   var otherLaborCost = target ? _toNum(target.monthlyLaborCost) : 0;
 
-  // Attendance-derived labor cost — calculated only for shifts whose clock_in
-  // falls within the selected date range so it stays consistent with sales.
-  var attLabor = calcAttendanceLaborCost(store, year, month, dateFrom, dateTo);
-  // Manual "other" labor cost is set monthly — pro-rate to the range share.
-  var daysInMonthForLabor = new Date(year, month, 0).getDate();
-  var laborPart = (totalRangeDays > 0 && daysInMonthForLabor > 0)
-    ? Math.min(totalRangeDays, daysInMonthForLabor) / daysInMonthForLabor
-    : 0;
-  var otherLaborCostPart = otherLaborCost * laborPart;
-  var totalLaborCost = otherLaborCostPart + attLabor.cost;
-
-  // Pace calc — number of days in [dateFrom, dateTo] that have already passed
-  // (i.e., are ≤ today, in the spreadsheet TZ). Then expectedToToday is the
-  // pro-rata share of the monthly target for those elapsed range days.
+  // Pace calc — number of days in [dateFrom, dateTo] (totalRangeDays) and
+  // how many of them have already passed (elapsedRangeDays). Must compute
+  // these BEFORE the labor pro-rating below (which depends on totalRangeDays).
   var nowStr = Utilities.formatDate(new Date(), getSpreadsheetTz(), "yyyy-MM-dd");
   var daysInMonth = new Date(year, month, 0).getDate();
   var elapsedRangeDays = 0;
@@ -1915,6 +1904,17 @@ function getDashboard(body) {
       cur.setDate(cur.getDate() + 1);
     }
   })();
+
+  // Attendance-derived labor cost — calculated only for shifts whose clock_in
+  // falls within the selected date range so it stays consistent with sales.
+  var attLabor = calcAttendanceLaborCost(store, year, month, dateFrom, dateTo);
+  // Manual "other" labor cost is set monthly — pro-rate to the range share.
+  var daysInMonthForLabor = new Date(year, month, 0).getDate();
+  var laborPart = (totalRangeDays > 0 && daysInMonthForLabor > 0)
+    ? Math.min(totalRangeDays, daysInMonthForLabor) / daysInMonthForLabor
+    : 0;
+  var otherLaborCostPart = otherLaborCost * laborPart;
+  var totalLaborCost = otherLaborCostPart + attLabor.cost;
   // Backward-compat field: todayDay used by the frontend's progress label
   var todayDay = elapsedRangeDays;
   var expectedToToday = salesTarget * (daysInMonth > 0 ? elapsedRangeDays / daysInMonth : 0);
@@ -2052,9 +2052,11 @@ function calcAttendanceLaborCost(store, year, month, dateFrom, dateTo) {
     var u = userMap[uid];
     var events = byUser[uid].sort(function (a, b) { return a.ts - b.ts; });
 
-    // 日給制: employee with dailyRate > 0 → 出勤日数(clock_in の発生した日)を数えて
-    //         dailyRate を掛ける。労働時間は参考値として 8h/日 で計上。
-    var isDaily = u.role === "employee" && u.dailyRate > 0;
+    // 日給制: dailyRate > 0 なら役職に関係なく日給ベースで計算する。
+    //         (admin で月給制の従業員も含めて扱えるようにシンプル化)
+    //         出勤日数(clock_in が発生した日)を数えて dailyRate を掛ける。
+    //         労働時間は参考値として 8h/日 で計上。
+    var isDaily = u.dailyRate > 0;
     if (isDaily) {
       var workDays = {};
       for (var i = 0; i < events.length; i++) {
@@ -2556,6 +2558,7 @@ function onOpen() {
       .addItem("🔧 全シートを作成 (未作成のみ)", "initAllSheets")
       .addSeparator()
       .addItem("👤 Users シートを整理", "organizeUsersSheet")
+      .addItem("💴 日給を salary から自動補完", "backfillDailyRateFromSalary")
       .addItem("🌱 ROBATA NARU 11名を投入", "seedRobataNaruUsers")
       .addToUi();
   } catch (e) { /* not a UI context — running from web app */ }
@@ -2588,6 +2591,77 @@ var ROBATA_USER_SEED = [
   { name: "Hà Kiều Ly",       role: "parttime", hourlyRate: 30000, dailyRate: 0       },
   { name: "Trần Thị Thùy",    role: "parttime", hourlyRate: 30000, dailyRate: 0       },
 ];
+
+// Users シートの `salary`(月給)列を読んで、空の `dailyRate` を salary÷25 で
+// 自動補完する。既に dailyRate に値があれば上書きしない。
+// 標準勤務日数を変えたい場合は STANDARD_WORK_DAYS を変更。
+var STANDARD_WORK_DAYS = 25;
+
+function backfillDailyRateFromSalary() {
+  var sheet = getSheet(USERS_SHEET);
+  ensureUserColumns(sheet);
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2) {
+    try { SpreadsheetApp.getUi().alert("Users シートが空です"); } catch (e) {}
+    return { success: true, updated: 0 };
+  }
+
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  // 月給は CSV では "salary" 列。スペース違い等のヘッダー揺れにも対応。
+  var salaryColIdx = -1;
+  for (var i = 0; i < headers.length; i++) {
+    var h = String(headers[i] || "").toLowerCase().trim();
+    if (h === "salary" || h === "monthlysalary" || h === "monthly salary") {
+      salaryColIdx = i;
+      break;
+    }
+  }
+  var dailyRateColIdx = headers.indexOf("dailyRate");
+  if (dailyRateColIdx < 0) {
+    try { SpreadsheetApp.getUi().alert("dailyRate 列が見つかりません"); } catch (e) {}
+    return { success: false, message: "dailyRate column missing" };
+  }
+  if (salaryColIdx < 0) {
+    try { SpreadsheetApp.getUi().alert("salary 列が見つかりません(月給がここから取れません)"); } catch (e) {}
+    return { success: false, message: "salary column missing" };
+  }
+
+  var range = sheet.getRange(2, 1, lastRow - 1, lastCol);
+  var values = range.getValues();
+  var updated = 0;
+  var changes = [];
+  for (var r = 0; r < values.length; r++) {
+    var name = String(values[r][headers.indexOf("name")] || "").trim();
+    if (!name) continue;
+    var currentDaily = _toNum(values[r][dailyRateColIdx]);
+    if (currentDaily > 0) continue; // 既に値があるならスキップ
+    var salary = _toNum(values[r][salaryColIdx]);
+    if (salary <= 0) continue; // 月給情報がない人はスキップ
+    var newDaily = Math.round(salary / STANDARD_WORK_DAYS);
+    values[r][dailyRateColIdx] = newDaily;
+    changes.push("  ・" + name + ": 月給 " + salary.toLocaleString() + " → 日給 " + newDaily.toLocaleString());
+    updated += 1;
+  }
+  if (updated > 0) {
+    range.setValues(values);
+  }
+  // user キャッシュをクリア
+  try {
+    var cache = CacheService.getScriptCache();
+    var rows = getAllRows(sheet);
+    var keys = rows.map(function (r2) { return "user:" + String(r2.id || ""); });
+    if (keys.length) cache.removeAll(keys);
+  } catch (e) {}
+
+  var msg = [
+    "dailyRate 自動補完が完了しました(salary ÷ " + STANDARD_WORK_DAYS + ")。",
+    "",
+    "・更新: " + updated + " 名",
+  ].concat(changes).join("\n");
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) { Logger.log(msg); }
+  return { success: true, updated: updated };
+}
 
 // Users シートを整理(ゴミ行除去 + 列マイグレ + 並び替え)
 function organizeUsersSheet() {
