@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbyErIy8KVRHXspEvSm4dnkFTTPYNpHiRZX9Syw0F2gHggcCuqgJB5Lv8764otBQHq0-/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxJWWbUTROc-TYi5qfwLhRfT2afzw-j4auX_qSABVxeQI9IYJcKvmpk0D3l_sV9ZjRv/exec";
 
 // ============================================================
 // PWA: register service worker so the app is installable on home screen
@@ -233,6 +233,7 @@ const I18N = {
     dashTotalHours: "Tổng giờ",
     userStore: "Cửa hàng",
     hourlyRate: "Lương theo giờ",
+    dailyRate: "Lương theo ngày",
     laborCostModalTitle: "Chỉnh sửa chi phí nhân công khác",
     otherLaborCostLabel: "Chi phí nhân công khác (cố định, thưởng, BHXH...)",
     otherLaborHint: "※ Phần lương theo giờ từ chấm công được tự động tính riêng.",
@@ -529,6 +530,7 @@ const I18N = {
     dashTotalHours: "合計勤務時間",
     userStore: "所属店舗",
     hourlyRate: "時給",
+    dailyRate: "日給",
     laborCostModalTitle: "その他人件費の編集",
     otherLaborCostLabel: "その他人件費 (固定給・賞与・社保負担分など)",
     otherLaborHint: "※ 勤怠から自動計算される時給分は別途加算されます。",
@@ -907,6 +909,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     bankAccount: $("regBankAccount"),
     store: $("regStore"),
     hourlyRate: document.getElementById("regHourlyRate").value || 0,
+    dailyRate: document.getElementById("regDailyRate").value || 0,
   };
   if (!payload.name) {
     showToast(t("msgNameRequired"), "error");
@@ -2609,6 +2612,8 @@ function renderUserMasterList(list) {
       const lbl = t(k);
       appendMasterMeta(meta, t("positionLabel"), lbl !== k ? lbl : u.role);
     }
+    if (u.dailyRate) appendMasterMeta(meta, t("dailyRate"), fmtVnd(u.dailyRate) + "/日");
+    if (u.hourlyRate) appendMasterMeta(meta, t("hourlyRate"), fmtVnd(u.hourlyRate) + "/h");
     if (u.hireDate) appendMasterMeta(meta, t("hireDate"), fmtDate(u.hireDate));
     card.appendChild(meta);
 

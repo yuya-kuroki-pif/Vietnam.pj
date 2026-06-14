@@ -20,7 +20,7 @@ var USER_COLUMNS = [
   "phone", "birthDate", "gender", "idNumber",
   "address", "hireDate", "emergencyContact",
   "bankName", "bankBranch", "bankAccount",
-  "hourlyRate", "store"
+  "hourlyRate", "dailyRate", "store"
 ];
 
 var TIMEZONE = "Asia/Ho_Chi_Minh"; // Vietnam timezone
@@ -684,6 +684,7 @@ function registerUser(body) {
     bankBranch: (body.bankBranch || "").toString().trim(),
     bankAccount: (body.bankAccount || "").toString().trim(),
     hourlyRate: _toNum(body.hourlyRate),
+    dailyRate: _toNum(body.dailyRate),
     store: (body.store || "").toString().trim(),
   };
   var row = USER_COLUMNS.map(function (c) { return data[c] !== undefined && data[c] !== "" ? data[c] : ""; });
@@ -726,6 +727,7 @@ function listUsers(body) {
         phone: asStr(u.phone),
         store: asStr(u.store),
         hourlyRate: _toNum(u.hourlyRate),
+        dailyRate: _toNum(u.dailyRate),
         hireDate: asStr(u.hireDate),
       };
     }),
@@ -2015,14 +2017,18 @@ function calcAttendanceLaborCost(store, year, month, dateFrom, dateTo) {
   var hasRange = /^\d{4}-\d{2}-\d{2}$/.test(String(dateFrom || "")) &&
                  /^\d{4}-\d{2}-\d{2}$/.test(String(dateTo || ""));
 
-  // Build a map of store-belonging users with their hourly rate
+  // Build a map of store-belonging users with their role + rates.
+  // - role=employee with dailyRate>0 → 日給制(出勤日数 × dailyRate)
+  // - その他 (主に parttime) → 時給制(労働時間 × hourlyRate)
   var userRows = getAllRows(getSheet(USERS_SHEET));
   var userMap = {};
   userRows.forEach(function (u) {
     if (String(u.store || "").trim() === store) {
       userMap[String(u.id)] = {
         name: u.name,
+        role: String(u.role || ""),
         hourlyRate: _toNum(u.hourlyRate),
+        dailyRate: _toNum(u.dailyRate),
       };
     }
   });
@@ -2043,35 +2049,54 @@ function calcAttendanceLaborCost(store, year, month, dateFrom, dateTo) {
   var totalCost = 0;
   var totalMinutes = 0;
   Object.keys(byUser).forEach(function (uid) {
-    var rate = userMap[uid].hourlyRate;
+    var u = userMap[uid];
     var events = byUser[uid].sort(function (a, b) { return a.ts - b.ts; });
 
+    // 日給制: employee with dailyRate > 0 → 出勤日数(clock_in の発生した日)を数えて
+    //         dailyRate を掛ける。労働時間は参考値として 8h/日 で計上。
+    var isDaily = u.role === "employee" && u.dailyRate > 0;
+    if (isDaily) {
+      var workDays = {};
+      for (var i = 0; i < events.length; i++) {
+        var e = events[i];
+        if (e.type !== "clock_in") continue;
+        var dateStr = Utilities.formatDate(e.ts, tz, "yyyy-MM-dd");
+        var inYM = dateStr.substring(0, 7);
+        var attribute = hasRange
+          ? (dateStr >= dateFrom && dateStr <= dateTo)
+          : (inYM === targetYM);
+        if (attribute) workDays[dateStr] = true;
+      }
+      var dayCount = Object.keys(workDays).length;
+      totalCost += dayCount * u.dailyRate;
+      totalMinutes += dayCount * 8 * 60; // 8h/日 換算で参考値
+      return;
+    }
+
+    // 時給制: 既存ロジック(clock_in と clock_out をペアリングし、休憩を控除)
+    var rate = u.hourlyRate;
     var clockIn = null;
     var breakStart = null;
-    var breakTotal = 0; // ms of break time accumulated within the current shift
-    for (var i = 0; i < events.length; i++) {
-      var e = events[i];
-      if (e.type === "clock_in") {
-        // Start of a new shift — any orphan state from the prior unmatched
-        // clock_in is discarded (no auto-clock-out by design).
-        clockIn = e.ts;
+    var breakTotal = 0;
+    for (var j = 0; j < events.length; j++) {
+      var ev = events[j];
+      if (ev.type === "clock_in") {
+        clockIn = ev.ts;
         breakStart = null;
         breakTotal = 0;
-      } else if (e.type === "break_start" && clockIn) {
-        breakStart = e.ts;
-      } else if (e.type === "break_end" && breakStart) {
-        breakTotal += (e.ts - breakStart);
+      } else if (ev.type === "break_start" && clockIn) {
+        breakStart = ev.ts;
+      } else if (ev.type === "break_end" && breakStart) {
+        breakTotal += (ev.ts - breakStart);
         breakStart = null;
-      } else if (e.type === "clock_out" && clockIn) {
-        // Attribute the paid duration to the month of the clock_in (or to the
-        // date range if one was provided).
-        var inDate = Utilities.formatDate(clockIn, tz, "yyyy-MM-dd");
-        var inYM = inDate.substring(0, 7);
-        var attribute = hasRange
-          ? (inDate >= dateFrom && inDate <= dateTo)
-          : (inYM === targetYM);
-        if (attribute) {
-          var minutes = ((e.ts - clockIn) - breakTotal) / 60000;
+      } else if (ev.type === "clock_out" && clockIn) {
+        var inDate2 = Utilities.formatDate(clockIn, tz, "yyyy-MM-dd");
+        var inYM2 = inDate2.substring(0, 7);
+        var attribute2 = hasRange
+          ? (inDate2 >= dateFrom && inDate2 <= dateTo)
+          : (inYM2 === targetYM);
+        if (attribute2) {
+          var minutes = ((ev.ts - clockIn) - breakTotal) / 60000;
           if (minutes < 0) minutes = 0;
           totalMinutes += minutes;
           totalCost += (minutes / 60) * rate;
@@ -2081,8 +2106,6 @@ function calcAttendanceLaborCost(store, year, month, dateFrom, dateTo) {
         breakTotal = 0;
       }
     }
-    // If `clockIn` is still set here, the user forgot to clock out for that
-    // shift. By design we do NOT auto-clock-out, so those hours are dropped.
   });
 
   return {
