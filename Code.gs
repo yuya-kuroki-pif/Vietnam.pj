@@ -2554,8 +2554,172 @@ function onOpen() {
       .createMenu("⚙ システム")
       .addItem("📋 全シートを整形", "formatAllSheets")
       .addItem("🔧 全シートを作成 (未作成のみ)", "initAllSheets")
+      .addSeparator()
+      .addItem("👤 Users シートを整理", "organizeUsersSheet")
+      .addItem("🌱 ROBATA NARU 11名を投入", "seedRobataNaruUsers")
       .addToUi();
   } catch (e) { /* not a UI context — running from web app */ }
+}
+
+// ==============================================================
+// Users シート整理ユーティリティ
+//
+//   organizeUsersSheet()    : ゴミ行削除 + 列マイグレーション + 役職/氏名で並び替え
+//   seedRobataNaruUsers()   : ROBATA NARU 給与明細の 11 名を未登録なら自動投入
+//
+//   両方とも何度実行しても安全(idempotent)です。
+// ==============================================================
+
+var ROBATA_DEFAULT_STORE = "ROBATA NARU";
+
+// ROBATA NARU 2026/5 給与明細から抽出
+// FULLTIME = role:"employee", dailyRate = 月給 ÷ 25日
+// PARTTIME = role:"parttime", hourlyRate = 30,000 đ/h
+var ROBATA_USER_SEED = [
+  { name: "Nguyễn Tuấn Anh",  role: "employee", hourlyRate: 0,     dailyRate: 1020000 },
+  { name: "Trần Văn Trường",  role: "employee", hourlyRate: 0,     dailyRate: 680000  },
+  { name: "Nguyễn Đức Minh",  role: "employee", hourlyRate: 0,     dailyRate: 680000  },
+  { name: "Lê Mạnh Duy",      role: "employee", hourlyRate: 0,     dailyRate: 408000  },
+  { name: "Nguyễn Duy Anh",   role: "employee", hourlyRate: 0,     dailyRate: 680000  },
+  { name: "Vũ Thanh Tùng",    role: "employee", hourlyRate: 0,     dailyRate: 1046000 },
+  { name: "Nguyễn Phú Hải",   role: "parttime", hourlyRate: 30000, dailyRate: 0       },
+  { name: "Trần Thành Tính",  role: "parttime", hourlyRate: 30000, dailyRate: 0       },
+  { name: "Lưu Thị Ngọc Hân", role: "parttime", hourlyRate: 30000, dailyRate: 0       },
+  { name: "Hà Kiều Ly",       role: "parttime", hourlyRate: 30000, dailyRate: 0       },
+  { name: "Trần Thị Thùy",    role: "parttime", hourlyRate: 30000, dailyRate: 0       },
+];
+
+// Users シートを整理(ゴミ行除去 + 列マイグレ + 並び替え)
+function organizeUsersSheet() {
+  var sheet = getSheet(USERS_SHEET);
+  // 1. 列マイグレーション(USER_COLUMNS の不足列を末尾追加)
+  ensureUserColumns(sheet);
+  // 2. ゴミ行削除(id も name も空)
+  var removed = _cleanupUsersPhantomRows(sheet);
+  // 3. 役職→氏名 順に並び替え
+  _sortUsersSheet(sheet);
+  // 4. user キャッシュをクリア(古いデータが残らないように)
+  try {
+    var cache = CacheService.getScriptCache();
+    var rows = getAllRows(sheet);
+    var keys = rows.map(function (r) { return "user:" + String(r.id || ""); });
+    if (keys.length) cache.removeAll(keys);
+  } catch (e) {}
+
+  var msg = [
+    "Users シート整理が完了しました。",
+    "",
+    "・ゴミ行(ID/氏名 空)削除: " + removed + " 件",
+    "・並び替え: 役職(admin → employee → parttime → その他)→ 氏名 順",
+    "・列構成: 最新の " + USER_COLUMNS.length + " 列に同期",
+  ].join("\n");
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) { Logger.log(msg); }
+  return { success: true, removed: removed };
+}
+
+// ROBATA NARU 11 名を Users シートに投入(同名は既に居れば追加しない)
+function seedRobataNaruUsers() {
+  // 店舗マスタにも自動登録
+  try { _ensureInMaster(STORES_SHEET, ROBATA_DEFAULT_STORE); } catch (e) {}
+
+  var sheet = getSheet(USERS_SHEET);
+  ensureUserColumns(sheet);
+  var rows = getAllRows(sheet);
+
+  // 既存ユーザーの名前を小文字化したセットで突合
+  var existing = {};
+  rows.forEach(function (r) {
+    var n = String(r.name || "").trim().toLowerCase();
+    if (n) existing[n] = true;
+  });
+
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var added = 0;
+  var skipped = 0;
+  var addedNames = [];
+  ROBATA_USER_SEED.forEach(function (seed) {
+    if (existing[seed.name.toLowerCase()]) { skipped += 1; return; }
+    var data = {
+      id: uuid(),
+      name: seed.name,
+      email: "",
+      passwordHash: "",
+      createdAt: nowIso(),
+      role: seed.role,
+      phone: "",
+      birthDate: "",
+      gender: "",
+      idNumber: "",
+      address: "",
+      hireDate: "",
+      emergencyContact: "",
+      bankName: "",
+      bankBranch: "",
+      bankAccount: "",
+      hourlyRate: seed.hourlyRate,
+      dailyRate: seed.dailyRate,
+      store: ROBATA_DEFAULT_STORE,
+    };
+    var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
+    appendTextRow(sheet, row);
+    addedNames.push(seed.name);
+    added += 1;
+  });
+
+  // 投入後は整理もまとめて実行
+  _sortUsersSheet(sheet);
+
+  var msg = [
+    "ROBATA NARU ユーザー投入が完了しました。",
+    "",
+    "・新規追加: " + added + " 名",
+    "・既存スキップ: " + skipped + " 名(同名のため)",
+    added ? "" : null,
+    added ? "追加された名前:" : null,
+  ].concat(addedNames.map(function (n) { return "  ・" + n; }))
+   .filter(function (l) { return l !== null; })
+   .join("\n");
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) { Logger.log(msg); }
+  return { success: true, added: added, skipped: skipped };
+}
+
+// id も name も空のゴミ行を削除。下から削るので行番号がずれない。
+function _cleanupUsersPhantomRows(sheet) {
+  var rows = getAllRows(sheet);
+  var indices = [];
+  rows.forEach(function (r) {
+    var id = String(r.id || "").trim();
+    var name = String(r.name || "").trim();
+    if (!id && !name) indices.push(r._rowIndex);
+  });
+  indices.sort(function (a, b) { return b - a; });
+  indices.forEach(function (i) { sheet.deleteRow(i); });
+  return indices.length;
+}
+
+// 役職(admin → employee → parttime → その他) → 氏名 で並び替え。
+// ヘッダー行(1行目)はそのまま、データ行のみソート。
+function _sortUsersSheet(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 3) return;
+  var lastCol = sheet.getLastColumn();
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var roleCol = headers.indexOf("role");
+  var nameCol = headers.indexOf("name");
+  if (roleCol < 0 || nameCol < 0) return;
+
+  var dataRange = sheet.getRange(2, 1, lastRow - 1, lastCol);
+  var values = dataRange.getValues();
+  var roleOrder = { "admin": 0, "employee": 1, "parttime": 2 };
+  values.sort(function (a, b) {
+    var ra = roleOrder.hasOwnProperty(String(a[roleCol])) ? roleOrder[String(a[roleCol])] : 99;
+    var rb = roleOrder.hasOwnProperty(String(b[roleCol])) ? roleOrder[String(b[roleCol])] : 99;
+    if (ra !== rb) return ra - rb;
+    var na = String(a[nameCol]).toLowerCase();
+    var nb = String(b[nameCol]).toLowerCase();
+    return na < nb ? -1 : na > nb ? 1 : 0;
+  });
+  dataRange.setValues(values);
 }
 
 // Manually creates any missing sheets without touching existing data.

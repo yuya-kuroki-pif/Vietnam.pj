@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxJWWbUTROc-TYi5qfwLhRfT2afzw-j4auX_qSABVxeQI9IYJcKvmpk0D3l_sV9ZjRv/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyqeC43HxWu2SVSOML2AJ2DSra7bclo_C1PG6CL6O8br46alAROBufcpYF6CY3DqOyq/exec";
 
 // ============================================================
 // PWA: register service worker so the app is installable on home screen
