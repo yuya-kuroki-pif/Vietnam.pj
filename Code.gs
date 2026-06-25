@@ -117,6 +117,18 @@ function doPost(e) {
       case "getStatus":
         result = getStatus(body);
         break;
+      case "listAttendance":
+        result = listAttendance(body);
+        break;
+      case "addAttendance":
+        result = addAttendance(body);
+        break;
+      case "updateAttendance":
+        result = updateAttendance(body);
+        break;
+      case "deleteAttendance":
+        result = deleteAttendance(body);
+        break;
       case "registerShift":
         result = registerShift(body);
         break;
@@ -941,6 +953,124 @@ function stripRow(r) {
     timestamp: normalizeTimestamp(r.timestamp),
     date: normalizeDate(r.date),
   };
+}
+
+// ----------------------------------------------------------------
+// Attendance management (list / add / update / delete)
+// 勤怠管理画面で使う CRUD API
+// ----------------------------------------------------------------
+var VALID_PUNCH_TYPES = ["clock_in", "clock_out", "break_start", "break_end"];
+
+// Build a timestamp string in TIMEZONE for "yyyy-MM-dd" + "HH:mm[:ss]".
+function _composeTs(date, time) {
+  var t = String(time || "");
+  // Normalize "HH:mm" to "HH:mm:00"
+  if (/^\d{2}:\d{2}$/.test(t)) t = t + ":00";
+  if (!/^\d{2}:\d{2}:\d{2}$/.test(t)) return "";
+  // Format using the spreadsheet TZ to keep ISO consistent
+  var d = new Date(date + "T" + t);
+  if (isNaN(d.getTime())) return "";
+  return Utilities.formatDate(d, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+}
+
+function listAttendance(body) {
+  var userId = (body.userId || "").toString();
+  var dateFrom = (body.dateFrom || "").toString();
+  var dateTo = (body.dateTo || "").toString();
+
+  var sheet = getSheet(ATT_SHEET);
+  // Read recent rows for performance — covers most editing use cases.
+  // If editing very old records is required, increase this number.
+  var rows = getRecentRows(sheet, 3000);
+  var filtered = rows.filter(function (r) {
+    var d = normalizeDate(r.date);
+    if (userId && String(r.userId) !== userId) return false;
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo && d > dateTo) return false;
+    return true;
+  });
+  // Sort by timestamp descending (newest first)
+  filtered.sort(function (a, b) {
+    var ta = new Date(normalizeTimestamp(a.timestamp));
+    var tb = new Date(normalizeTimestamp(b.timestamp));
+    return tb - ta;
+  });
+  return {
+    success: true,
+    records: filtered.map(function (r) {
+      return {
+        id: String(r.id || ""),
+        userId: String(r.userId || ""),
+        name: String(r.name || ""),
+        role: String(r.role || ""),
+        type: String(r.type || ""),
+        timestamp: normalizeTimestamp(r.timestamp),
+        date: normalizeDate(r.date),
+      };
+    }),
+  };
+}
+
+function addAttendance(body) {
+  var userId = (body.userId || "").toString();
+  var date = (body.date || "").toString();
+  var time = (body.time || "").toString();
+  var type = (body.type || "").toString();
+  if (!userId || !date || !time || !type) return { success: false, message: "Missing fields" };
+  if (VALID_PUNCH_TYPES.indexOf(type) === -1) return { success: false, message: "Invalid type" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, message: "Invalid date" };
+  var ts = _composeTs(date, time);
+  if (!ts) return { success: false, message: "Invalid time" };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var sheet = getSheet(ATT_SHEET);
+    var user = findUserById(userId);
+    var name = user ? String(user.name || "") : "";
+    var role = user ? String(user.role || "") : "";
+    var newId = uuid();
+    appendTextRow(sheet, [newId, userId, type, ts, date, name, role]);
+    return { success: true, id: newId };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateAttendance(body) {
+  var id = (body.id || "").toString();
+  var userId = (body.userId || "").toString();
+  var date = (body.date || "").toString();
+  var time = (body.time || "").toString();
+  var type = (body.type || "").toString();
+  if (!id || !userId || !date || !time || !type) return { success: false, message: "Missing fields" };
+  if (VALID_PUNCH_TYPES.indexOf(type) === -1) return { success: false, message: "Invalid type" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, message: "Invalid date" };
+  var ts = _composeTs(date, time);
+  if (!ts) return { success: false, message: "Invalid time" };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var sheet = getSheet(ATT_SHEET);
+    var rows = getAllRows(sheet);
+    for (var i = 0; i < rows.length; i++) {
+      if (String(rows[i].id) === id) {
+        var user = findUserById(userId);
+        var name = user ? String(user.name || "") : String(rows[i].name || "");
+        var role = user ? String(user.role || "") : String(rows[i].role || "");
+        writeTextRow(sheet, rows[i]._rowIndex, [id, userId, type, ts, date, name, role]);
+        return { success: true };
+      }
+    }
+    return { success: false, message: "Not found" };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteAttendance(body) {
+  return _deleteFromSheet(ATT_SHEET, (body.id || "").toString());
 }
 
 // ----------------------------------------------------------------

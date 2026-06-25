@@ -84,6 +84,15 @@
         </span>
         <span data-i18n="menuDashboard">Bảng điều khiển</span>
       </button>
+      <button type="button" class="drawer-item" data-target="attendanceManage">
+        <span class="drawer-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <polyline points="12,7 12,12 15,15"/>
+          </svg>
+        </span>
+        <span data-i18n="menuAttendanceManage">Sửa chấm công</span>
+      </button>
       <button type="button" class="drawer-item" data-target="master">
         <span class="drawer-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -344,6 +353,73 @@
         <div id="dailySalesList" class="tx-list"></div>
       </div>
     </section>
+
+    <!-- Attendance management screen (一覧 + 修正) -->
+    <section id="attendanceManageScreen" class="screen">
+      <div class="card">
+        <h2 data-i18n="attMngTitle">勤怠管理</h2>
+
+        <div class="dash-toolbar">
+          <select id="attMngUserFilter" class="tx-input">
+            <option value="" data-i18n="attMngAllUsers">-- 全ユーザー --</option>
+          </select>
+        </div>
+        <div class="dash-toolbar dash-date-range">
+          <label class="dash-range-label" data-i18n="dashRangeLabel">期間</label>
+          <input type="date" id="attMngDateFrom" class="tx-input dash-date-input" />
+          <span class="dash-range-sep">〜</span>
+          <input type="date" id="attMngDateTo" class="tx-input dash-date-input" />
+          <button type="button" id="attMngTodayBtn" class="btn btn-ghost btn-sm" data-i18n="dashRangeToday">本日</button>
+          <button type="button" id="attMngThisMonthBtn" class="btn btn-ghost btn-sm" data-i18n="dashRangeThisMonth">今月</button>
+        </div>
+
+        <div class="dash-actions">
+          <button type="button" id="attMngAddBtn" class="btn btn-primary" data-i18n="attMngAddBtn">+ 打刻を追加</button>
+        </div>
+
+        <div id="attMngList" class="tx-list"></div>
+      </div>
+    </section>
+
+    <!-- Attendance edit / add modal -->
+    <div id="attEditModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card">
+        <button type="button" class="modal-close" id="attEditClose">&times;</button>
+        <h3 id="attEditTitle" data-i18n="attEditTitle">打刻を編集</h3>
+        <form id="attEditForm">
+          <input type="hidden" id="attEditId" />
+
+          <label><span data-i18n="attMngUser">ユーザー</span><span class="required">*</span></label>
+          <select id="attEditUserId" required>
+            <option value=""></option>
+          </select>
+
+          <div class="form-row-2">
+            <div>
+              <label><span data-i18n="date">日付</span><span class="required">*</span></label>
+              <input type="date" id="attEditDate" required />
+            </div>
+            <div>
+              <label><span data-i18n="attMngTime">時刻</span><span class="required">*</span></label>
+              <input type="time" id="attEditTime" step="1" required />
+            </div>
+          </div>
+
+          <label><span data-i18n="attMngType">種別</span><span class="required">*</span></label>
+          <select id="attEditType" required>
+            <option value="clock_in" data-i18n="logClockIn">出勤</option>
+            <option value="break_start" data-i18n="logBreakStart">休憩開始</option>
+            <option value="break_end" data-i18n="logBreakEnd">休憩終了</option>
+            <option value="clock_out" data-i18n="logClockOut">退勤</option>
+          </select>
+
+          <button type="submit" class="btn btn-primary" data-i18n="saveBtn">保存</button>
+          <button type="button" id="attEditDelete" class="btn btn-danger btn-block" data-i18n="deleteBtn">削除</button>
+          <button type="button" id="attEditCancel" class="btn btn-ghost btn-block" data-i18n="cancel">キャンセル</button>
+        </form>
+      </div>
+    </div>
 
     <!-- Master data screen (stores + vendors) -->
     <section id="masterScreen" class="screen">

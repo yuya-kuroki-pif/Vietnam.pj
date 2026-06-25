@@ -2,7 +2,7 @@
 // CONFIG: Paste your Google Apps Script Web App URL here
 // (After deploying Code.gs as Web App — see setup.txt)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbw7-VXgknnqSOnKsoZfYyVx8gNHuMrePEz0Y0_fjSmJZpTsxnHfFQwlhwFTNJ2_m2Nx/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzFD6QvN8JMXElte9I64FjRmSOB5oqltB5LZV4XpFmeQcN1gBT5f4EchajS9S5cfoJm/exec";
 
 // ============================================================
 // PWA: register service worker so the app is installable on home screen
@@ -245,6 +245,21 @@ const I18N = {
     addItemBtn: "+ Thêm mục",
     msgAtLeastOneItem: "Cần ít nhất 1 mục",
     msgItemsRegistered: "mục đã đăng ký",
+    menuAttendanceManage: "Sửa chấm công",
+    attMngTitle: "Quản lý chấm công",
+    attMngAllUsers: "-- Tất cả --",
+    attMngAddBtn: "+ Thêm bản ghi",
+    attMngUser: "Nhân viên",
+    attMngTime: "Giờ",
+    attMngType: "Loại",
+    attMngEmpty: "Không có bản ghi trong kỳ này",
+    attEditTitle: "Sửa bản ghi",
+    attAddTitle: "Thêm bản ghi",
+    deleteBtn: "Xóa",
+    msgAttendanceUpdated: "Đã cập nhật bản ghi",
+    msgAttendanceDeleted: "Đã xóa bản ghi",
+    msgAttendanceAdded: "Đã thêm bản ghi",
+    msgDeleteConfirm: "Xóa bản ghi này?",
     payCash: "Tiền mặt",
     payTransfer: "Chuyển khoản ngay",
     payTransferEom: "Chuyển khoản cuối tháng",
@@ -545,6 +560,21 @@ const I18N = {
     addItemBtn: "+ アイテムを追加",
     msgAtLeastOneItem: "アイテムは最低1件必要です",
     msgItemsRegistered: "件 登録しました",
+    menuAttendanceManage: "勤怠管理",
+    attMngTitle: "勤怠管理(一覧・修正)",
+    attMngAllUsers: "-- 全ユーザー --",
+    attMngAddBtn: "+ 打刻を追加",
+    attMngUser: "ユーザー",
+    attMngTime: "時刻",
+    attMngType: "種別",
+    attMngEmpty: "対象期間に打刻はありません",
+    attEditTitle: "打刻を編集",
+    attAddTitle: "打刻を追加",
+    deleteBtn: "削除",
+    msgAttendanceUpdated: "打刻を更新しました",
+    msgAttendanceDeleted: "打刻を削除しました",
+    msgAttendanceAdded: "打刻を追加しました",
+    msgDeleteConfirm: "この打刻を削除しますか?",
     payCash: "現金",
     payTransfer: "銀行即時振込",
     payTransferEom: "銀行月末振込",
@@ -877,6 +907,9 @@ document.querySelectorAll(".drawer-item").forEach((item) => {
     } else if (target === "storeDashboard") {
       showScreen("dashboardKpiScreen");
       enterDashboardScreen();
+    } else if (target === "attendanceManage") {
+      showScreen("attendanceManageScreen");
+      enterAttendanceManageScreen();
     }
     setActiveDrawerItem(target);
     closeDrawer();
@@ -4064,6 +4097,240 @@ document.getElementById("stkManualForm").addEventListener("submit", async (e) =>
     document.getElementById("stkManualForm").reset();
     closeStkAddItemModal();
     reloadStocktakeEntries();
+  }
+});
+
+// ============================================================
+// Attendance Management (一覧 + 修正)
+// ============================================================
+let attMngState = { userId: "", dateFrom: "", dateTo: "" };
+
+function enterAttendanceManageScreen() {
+  // Refresh user picker (uses the global `users` list)
+  const sel = document.getElementById("attMngUserFilter");
+  sel.innerHTML = '<option value="">' + t("attMngAllUsers") + "</option>";
+  users.forEach((u) => {
+    const opt = document.createElement("option");
+    opt.value = u.id;
+    opt.textContent = u.name;
+    sel.appendChild(opt);
+  });
+  sel.value = attMngState.userId || "";
+
+  // Default range = this month
+  if (!attMngState.dateFrom || !attMngState.dateTo) {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1;
+    const last = new Date(y, m, 0).getDate();
+    attMngState.dateFrom = `${y}-${String(m).padStart(2, "0")}-01`;
+    attMngState.dateTo = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  }
+  document.getElementById("attMngDateFrom").value = attMngState.dateFrom;
+  document.getElementById("attMngDateTo").value = attMngState.dateTo;
+
+  loadAttendanceList();
+}
+
+function attMngSetThisMonth() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth() + 1;
+  const last = new Date(y, m, 0).getDate();
+  attMngState.dateFrom = `${y}-${String(m).padStart(2, "0")}-01`;
+  attMngState.dateTo = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  document.getElementById("attMngDateFrom").value = attMngState.dateFrom;
+  document.getElementById("attMngDateTo").value = attMngState.dateTo;
+  loadAttendanceList();
+}
+
+function attMngSetToday() {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  attMngState.dateFrom = today;
+  attMngState.dateTo = today;
+  document.getElementById("attMngDateFrom").value = today;
+  document.getElementById("attMngDateTo").value = today;
+  loadAttendanceList();
+}
+
+document.getElementById("attMngUserFilter").addEventListener("change", (e) => {
+  attMngState.userId = e.target.value;
+  loadAttendanceList();
+});
+document.getElementById("attMngDateFrom").addEventListener("change", (e) => {
+  attMngState.dateFrom = e.target.value;
+  loadAttendanceList();
+});
+document.getElementById("attMngDateTo").addEventListener("change", (e) => {
+  attMngState.dateTo = e.target.value;
+  loadAttendanceList();
+});
+document.getElementById("attMngTodayBtn").addEventListener("click", attMngSetToday);
+document.getElementById("attMngThisMonthBtn").addEventListener("click", attMngSetThisMonth);
+document.getElementById("attMngAddBtn").addEventListener("click", () => openAttEditModal(null));
+
+async function loadAttendanceList() {
+  const r = await api("listAttendance", {
+    userId: attMngState.userId,
+    dateFrom: attMngState.dateFrom,
+    dateTo: attMngState.dateTo,
+  });
+  renderAttendanceList((r && r.records) || []);
+}
+
+function renderAttendanceList(records) {
+  const root = document.getElementById("attMngList");
+  root.innerHTML = "";
+  if (!records.length) {
+    const div = document.createElement("div");
+    div.className = "tx-empty";
+    div.textContent = t("attMngEmpty");
+    root.appendChild(div);
+    return;
+  }
+  const typeLabels = {
+    clock_in: "logClockIn",
+    clock_out: "logClockOut",
+    break_start: "logBreakStart",
+    break_end: "logBreakEnd",
+  };
+  records.forEach((rec) => {
+    const card = document.createElement("div");
+    card.className = "att-card";
+
+    const row1 = document.createElement("div");
+    row1.className = "att-card-row1";
+
+    const name = document.createElement("span");
+    name.className = "att-card-name";
+    name.textContent = rec.name || rec.userName || rec.userId;
+    row1.appendChild(name);
+
+    const badge = document.createElement("span");
+    badge.className = "att-type-badge att-type-" + rec.type;
+    badge.textContent = t(typeLabels[rec.type] || rec.type);
+    row1.appendChild(badge);
+
+    const dt = document.createElement("span");
+    dt.className = "att-card-datetime";
+    dt.textContent = `${fmtDate(rec.date)} ${formatTime(rec.timestamp)}`;
+    row1.appendChild(dt);
+
+    card.appendChild(row1);
+
+    const actions = document.createElement("div");
+    actions.className = "att-card-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "btn btn-ghost btn-sm";
+    editBtn.textContent = "✏️ " + t("attEditTitle");
+    editBtn.addEventListener("click", () => openAttEditModal(rec));
+    actions.appendChild(editBtn);
+
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "btn btn-ghost btn-sm";
+    delBtn.style.color = "var(--danger)";
+    delBtn.textContent = "🗑 " + t("deleteBtn");
+    delBtn.addEventListener("click", async () => {
+      if (!confirm(t("msgDeleteConfirm"))) return;
+      const r = await api("deleteAttendance", { id: rec.id });
+      if (r.success) {
+        showToast(t("msgAttendanceDeleted"), "success");
+        loadAttendanceList();
+      } else {
+        showToast(r.message || t("msgError"), "error");
+      }
+    });
+    actions.appendChild(delBtn);
+
+    card.appendChild(actions);
+    root.appendChild(card);
+  });
+}
+
+// ----- Edit / Add modal -----
+function openAttEditModal(rec) {
+  const sel = document.getElementById("attEditUserId");
+  sel.innerHTML = '<option value=""></option>';
+  users.forEach((u) => {
+    const opt = document.createElement("option");
+    opt.value = u.id;
+    opt.textContent = u.name;
+    sel.appendChild(opt);
+  });
+
+  const title = document.getElementById("attEditTitle");
+  if (rec) {
+    title.textContent = t("attEditTitle");
+    document.getElementById("attEditId").value = rec.id;
+    document.getElementById("attEditUserId").value = rec.userId;
+    document.getElementById("attEditDate").value = rec.date;
+    document.getElementById("attEditTime").value = formatTime(rec.timestamp);
+    document.getElementById("attEditType").value = rec.type;
+    document.getElementById("attEditDelete").style.display = "";
+  } else {
+    title.textContent = t("attAddTitle");
+    document.getElementById("attEditId").value = "";
+    document.getElementById("attEditUserId").value = attMngState.userId || "";
+    const now = new Date();
+    document.getElementById("attEditDate").value =
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    document.getElementById("attEditTime").value =
+      `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+    document.getElementById("attEditType").value = "clock_in";
+    document.getElementById("attEditDelete").style.display = "none";
+  }
+  document.getElementById("attEditModal").classList.remove("hidden");
+}
+
+function closeAttEditModal() {
+  document.getElementById("attEditModal").classList.add("hidden");
+}
+
+document.getElementById("attEditClose").addEventListener("click", closeAttEditModal);
+document.getElementById("attEditCancel").addEventListener("click", closeAttEditModal);
+document.querySelector("#attEditModal .modal-backdrop").addEventListener("click", closeAttEditModal);
+
+document.getElementById("attEditForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = document.getElementById("attEditId").value;
+  const userId = document.getElementById("attEditUserId").value;
+  const date = document.getElementById("attEditDate").value;
+  const time = document.getElementById("attEditTime").value;
+  const type = document.getElementById("attEditType").value;
+  if (!userId || !date || !time || !type) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
+  const payload = { userId, date, time, type };
+  let r;
+  if (id) {
+    payload.id = id;
+    r = await api("updateAttendance", payload);
+  } else {
+    r = await api("addAttendance", payload);
+  }
+  if (r.success) {
+    showToast(t(id ? "msgAttendanceUpdated" : "msgAttendanceAdded"), "success");
+    closeAttEditModal();
+    loadAttendanceList();
+  } else {
+    showToast(r.message || t("msgError"), "error");
+  }
+});
+
+document.getElementById("attEditDelete").addEventListener("click", async () => {
+  const id = document.getElementById("attEditId").value;
+  if (!id) return;
+  if (!confirm(t("msgDeleteConfirm"))) return;
+  const r = await api("deleteAttendance", { id });
+  if (r.success) {
+    showToast(t("msgAttendanceDeleted"), "success");
+    closeAttEditModal();
+    loadAttendanceList();
+  } else {
+    showToast(r.message || t("msgError"), "error");
   }
 });
 
