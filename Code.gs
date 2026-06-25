@@ -138,6 +138,9 @@ function doPost(e) {
       case "registerPurchase":
         result = registerPurchase(body);
         break;
+      case "registerPurchaseBatch":
+        result = registerPurchaseBatch(body);
+        break;
       case "deletePurchase":
         result = deletePurchase(body);
         break;
@@ -146,6 +149,9 @@ function doPost(e) {
         break;
       case "registerPettyCash":
         result = registerPettyCash(body);
+        break;
+      case "registerPettyCashBatch":
+        result = registerPettyCashBatch(body);
         break;
       case "deletePettyCash":
         result = deletePettyCash(body);
@@ -1221,6 +1227,68 @@ function registerPurchase(body) {
   }
 }
 
+// 仕入の一括登録
+// body = { date, store, vendor, paymentMethod, items: [{productName, category,
+//          unitPrice, quantity, taxRate, note}] }
+// 共通項目(date/store/vendor/paymentMethod)は全アイテムに適用される。
+// 1リクエスト内で 1 ロック獲得 → 全件 append → ロック解放。
+function registerPurchaseBatch(body) {
+  var date = (body.date || "").toString();
+  var store = (body.store || "").toString().trim();
+  var vendor = (body.vendor || "").toString().trim();
+  var paymentMethod = (body.paymentMethod || "").toString();
+  var items = body.items;
+  if (!date || !store) return { success: false, message: "Missing required fields" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, message: "Invalid date" };
+  if (!Array.isArray(items) || items.length === 0) return { success: false, message: "No items" };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var sheet = getSheet(PURCHASES_SHEET);
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var inserted = 0;
+    items.forEach(function (item) {
+      var productName = (item.productName || "").toString().trim();
+      if (!productName) return; // 商品名が空の行はスキップ
+      var unitPrice = _toNum(item.unitPrice);
+      var quantity = _toNum(item.quantity);
+      var taxRate = _toNum(item.taxRate);
+      var category = (item.category || "").toString();
+      var data = {
+        id: uuid(),
+        store: store,
+        date: date,
+        vendor: vendor,
+        productName: productName,
+        specification: (item.specification || "").toString(),
+        category: category,
+        unitPrice: unitPrice,
+        quantity: quantity,
+        taxRate: taxRate,
+        paymentMethod: paymentMethod,
+        method: "manual",
+        note: (item.note || "").toString(),
+        createdAt: nowIso(),
+      };
+      var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
+      appendTextRow(sheet, row);
+      // 在庫マスタへ自動反映(food/drink のみ)
+      _upsertInventoryItem(
+        store, category, productName, "",
+        unitPrice * (1 + taxRate / 100),
+        vendor
+      );
+      inserted += 1;
+    });
+    _ensureInMaster(STORES_SHEET, store);
+    if (vendor) _ensureInMaster(VENDORS_SHEET, vendor);
+    return { success: true, inserted: inserted };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function deletePurchase(body) {
   var id = (body.id || "").toString();
   if (!id) return { success: false, message: "Missing id" };
@@ -1338,6 +1406,59 @@ function registerPettyCash(body) {
     _ensureInMaster(STORES_SHEET, store);
     if (vendorName.trim()) _ensureInMaster(VENDORS_SHEET, vendorName.trim());
     return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// 小口現金の一括登録
+// body = { date, store, type:"in|out", vendor, taxCode, items: [{category,
+//          subCategory, productName, amount, taxRate, note}] }
+function registerPettyCashBatch(body) {
+  var date = (body.date || "").toString();
+  var store = (body.store || "").toString().trim();
+  var type = (body.type || "out").toString();
+  var vendor = (body.vendor || "").toString().trim();
+  var taxCode = (body.taxCode || "").toString();
+  var items = body.items;
+  if (!date || !store) return { success: false, message: "Missing required fields" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, message: "Invalid date" };
+  if (!Array.isArray(items) || items.length === 0) return { success: false, message: "No items" };
+  if (type !== "in" && type !== "out") type = "out";
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var sheet = getSheet(PETTY_SHEET);
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var inserted = 0;
+    items.forEach(function (item) {
+      var category = (item.category || "").toString().trim();
+      var amount = _toNum(item.amount);
+      if (!category || amount <= 0) return; // 必須欠損行はスキップ
+      var data = {
+        id: uuid(),
+        store: store,
+        date: date,
+        type: type,
+        category: category,
+        subCategory: (item.subCategory || "").toString(),
+        productName: (item.productName || "").toString(),
+        amount: amount,
+        taxRate: _toNum(item.taxRate),
+        paymentMethod: "",
+        vendor: vendor,
+        taxCode: taxCode,
+        note: (item.note || "").toString(),
+        createdAt: nowIso(),
+      };
+      var row = headers.map(function (h) { return data[h] !== undefined ? data[h] : ""; });
+      appendTextRow(sheet, row);
+      inserted += 1;
+    });
+    _ensureInMaster(STORES_SHEET, store);
+    if (vendor) _ensureInMaster(VENDORS_SHEET, vendor);
+    return { success: true, inserted: inserted };
   } finally {
     lock.releaseLock();
   }

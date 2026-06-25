@@ -535,40 +535,6 @@
           <option value="" data-i18n="selectVendor">-- Chọn nhà cung cấp --</option>
         </select>
 
-        <label><span data-i18n="productName">Tên sản phẩm</span><span class="required">*</span></label>
-        <input type="text" id="pProductName" required maxlength="80" />
-
-        <label data-i18n="category">Khoản mục</label>
-        <select id="pCategory">
-          <option value=""></option>
-          <option value="food" data-i18n="catFood">Đồ ăn</option>
-          <option value="drink" data-i18n="catDrink">Đồ uống</option>
-          <option value="other" data-i18n="catOther">Khác</option>
-        </select>
-
-        <div class="form-row-3">
-          <div>
-            <label data-i18n="unitPrice">Đơn giá (chưa thuế)</label>
-            <div class="currency-input">
-              <input type="number" id="pUnitPrice" min="0" step="1" inputmode="numeric" />
-              <span class="currency-suffix">đ</span>
-            </div>
-          </div>
-          <div>
-            <label data-i18n="quantity">Số lượng</label>
-            <input type="number" id="pQuantity" min="0" step="any" inputmode="decimal" />
-          </div>
-          <div>
-            <label data-i18n="taxRate">Thuế suất</label>
-            <select id="pTaxRate">
-              <option value="0">0%</option>
-              <option value="5">5%</option>
-              <option value="8" selected>8%</option>
-              <option value="10">10%</option>
-            </select>
-          </div>
-        </div>
-
         <label data-i18n="paymentMethod">Phương thức thanh toán</label>
         <select id="pPaymentMethod">
           <option value=""></option>
@@ -582,17 +548,62 @@
           <option value="other" data-i18n="payOther">Khác</option>
         </select>
 
+        <!-- 一括登録用アイテムリスト(JSで動的に追加) -->
+        <div id="pItemsList" class="batch-items"></div>
+
+        <button type="button" id="pAddItem" class="btn btn-ghost btn-block btn-add-item" data-i18n="addItemBtn">+ アイテムを追加</button>
+
         <div class="tx-summary-box">
           <div><span data-i18n="amountExclTax">Tiền chưa thuế</span>: <span id="pAmountExcl">0 đ</span></div>
           <div><span data-i18n="amountInclTax">Tiền có thuế</span>: <strong id="pAmountIncl">0 đ</strong></div>
         </div>
 
-        <label data-i18n="note">Ghi chú</label>
-        <input type="text" id="pNote" maxlength="200" />
-
-        <button type="submit" class="btn btn-primary" data-i18n="registerBtn">Đăng ký</button>
+        <button type="submit" class="btn btn-primary" id="pSubmitBtn" data-i18n="registerBtn">Đăng ký</button>
         <button type="button" class="btn btn-ghost btn-block" data-i18n="cancel" id="purchaseCancel">Hủy</button>
       </form>
+
+      <!-- 仕入アイテム1件分のテンプレート -->
+      <template id="pItemTemplate">
+        <div class="batch-item">
+          <div class="batch-item-header">
+            <span class="batch-item-index">#1</span>
+            <button type="button" class="batch-item-remove" title="削除">×</button>
+          </div>
+          <label><span data-i18n="productName">Tên sản phẩm</span><span class="required">*</span></label>
+          <input type="text" data-field="productName" required maxlength="80" />
+          <label data-i18n="category">Khoản mục</label>
+          <select data-field="category">
+            <option value=""></option>
+            <option value="food" data-i18n="catFood">Đồ ăn</option>
+            <option value="drink" data-i18n="catDrink">Đồ uống</option>
+            <option value="other" data-i18n="catOther">Khác</option>
+          </select>
+          <div class="form-row-3">
+            <div>
+              <label data-i18n="unitPrice">Đơn giá (chưa thuế)</label>
+              <div class="currency-input">
+                <input type="number" data-field="unitPrice" min="0" step="1" inputmode="numeric" />
+                <span class="currency-suffix">đ</span>
+              </div>
+            </div>
+            <div>
+              <label data-i18n="quantity">Số lượng</label>
+              <input type="number" data-field="quantity" min="0" step="any" inputmode="decimal" />
+            </div>
+            <div>
+              <label data-i18n="taxRate">Thuế suất</label>
+              <select data-field="taxRate">
+                <option value="0">0%</option>
+                <option value="5">5%</option>
+                <option value="8" selected>8%</option>
+                <option value="10">10%</option>
+              </select>
+            </div>
+          </div>
+          <label data-i18n="note">Ghi chú</label>
+          <input type="text" data-field="note" maxlength="200" />
+        </div>
+      </template>
     </div>
   </div>
 
@@ -622,41 +633,6 @@
           <button type="button" class="type-toggle-btn" data-type="in" data-i18n="typeIn">Thu (入金)</button>
         </div>
 
-        <label><span data-i18n="category">Khoản mục</span><span class="required">*</span></label>
-        <select id="cCategory" required>
-          <option value=""></option>
-          <option value="purchaseFood" data-i18n="catPurchaseFood">Mua hàng (đồ ăn)</option>
-          <option value="purchaseDrink" data-i18n="catPurchaseDrink">Mua hàng (đồ uống)</option>
-          <option value="reserveDeposit" data-i18n="catReserveDeposit">Nạp quỹ chuẩn bị</option>
-          <option value="utilities" data-i18n="catUtilities">Điện nước</option>
-          <option value="communication" data-i18n="catCommunication">Viễn thông</option>
-          <option value="supplies" data-i18n="catOfficeSupplies">Văn phòng phẩm</option>
-          <option value="travel" data-i18n="catTravel">Đi lại</option>
-          <option value="entertainment" data-i18n="catEntertainment">Tiếp khách</option>
-          <option value="bankFee" data-i18n="catBankFee">Phí ngân hàng</option>
-          <option value="other" data-i18n="catOther">Khác</option>
-        </select>
-
-        <label data-i18n="subCategory">Khoản mục phụ</label>
-        <input type="text" id="cSubCategory" maxlength="60" />
-
-        <label data-i18n="pettyProductName">購入物名</label>
-        <input type="text" id="cProductName" maxlength="120" />
-
-        <label><span data-i18n="amountInclTax">Số tiền (có thuế)</span><span class="required">*</span></label>
-        <div class="currency-input">
-          <input type="number" id="cAmount" min="0" step="1" inputmode="numeric" required />
-          <span class="currency-suffix">đ</span>
-        </div>
-
-        <label data-i18n="taxRate">Thuế suất</label>
-        <select id="cTaxRate">
-          <option value="0">0%</option>
-          <option value="5">5%</option>
-          <option value="8" selected>8%</option>
-          <option value="10">10%</option>
-        </select>
-
         <label data-i18n="vendor">Nhà cung cấp</label>
         <select id="cVendor">
           <option value="" data-i18n="selectVendor">-- Chọn nhà cung cấp --</option>
@@ -665,12 +641,66 @@
         <label data-i18n="taxCode">Mã số thuế (MST)</label>
         <input type="text" id="cTaxCode" maxlength="20" placeholder="0123456789" />
 
-        <label data-i18n="note">Ghi chú</label>
-        <textarea id="cNote" maxlength="300" rows="2"></textarea>
+        <!-- 一括登録用アイテムリスト(JSで動的に追加) -->
+        <div id="cItemsList" class="batch-items"></div>
 
-        <button type="submit" class="btn btn-primary" data-i18n="registerBtn">Đăng ký</button>
+        <button type="button" id="cAddItem" class="btn btn-ghost btn-block btn-add-item" data-i18n="addItemBtn">+ アイテムを追加</button>
+
+        <div class="tx-summary-box">
+          <div><span data-i18n="amountInclTax">Tiền có thuế</span>: <strong id="cTotalAmount">0 đ</strong></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="cSubmitBtn" data-i18n="registerBtn">Đăng ký</button>
         <button type="button" class="btn btn-ghost btn-block" data-i18n="cancel" id="pettyCancel">Hủy</button>
       </form>
+
+      <!-- 小口アイテム1件分のテンプレート -->
+      <template id="cItemTemplate">
+        <div class="batch-item">
+          <div class="batch-item-header">
+            <span class="batch-item-index">#1</span>
+            <button type="button" class="batch-item-remove" title="削除">×</button>
+          </div>
+          <label><span data-i18n="category">Khoản mục</span><span class="required">*</span></label>
+          <select data-field="category" required>
+            <option value=""></option>
+            <option value="purchaseFood" data-i18n="catPurchaseFood">Mua hàng (đồ ăn)</option>
+            <option value="purchaseDrink" data-i18n="catPurchaseDrink">Mua hàng (đồ uống)</option>
+            <option value="reserveDeposit" data-i18n="catReserveDeposit">Nạp quỹ chuẩn bị</option>
+            <option value="utilities" data-i18n="catUtilities">Điện nước</option>
+            <option value="communication" data-i18n="catCommunication">Viễn thông</option>
+            <option value="supplies" data-i18n="catOfficeSupplies">Văn phòng phẩm</option>
+            <option value="travel" data-i18n="catTravel">Đi lại</option>
+            <option value="entertainment" data-i18n="catEntertainment">Tiếp khách</option>
+            <option value="bankFee" data-i18n="catBankFee">Phí ngân hàng</option>
+            <option value="other" data-i18n="catOther">Khác</option>
+          </select>
+          <label data-i18n="subCategory">Khoản mục phụ</label>
+          <input type="text" data-field="subCategory" maxlength="60" />
+          <label data-i18n="pettyProductName">購入物名</label>
+          <input type="text" data-field="productName" maxlength="120" />
+          <div class="form-row-2">
+            <div>
+              <label><span data-i18n="amountInclTax">Số tiền (có thuế)</span><span class="required">*</span></label>
+              <div class="currency-input">
+                <input type="number" data-field="amount" min="0" step="1" inputmode="numeric" required />
+                <span class="currency-suffix">đ</span>
+              </div>
+            </div>
+            <div>
+              <label data-i18n="taxRate">Thuế suất</label>
+              <select data-field="taxRate">
+                <option value="0">0%</option>
+                <option value="5">5%</option>
+                <option value="8" selected>8%</option>
+                <option value="10">10%</option>
+              </select>
+            </div>
+          </div>
+          <label data-i18n="note">Ghi chú</label>
+          <input type="text" data-field="note" maxlength="200" />
+        </div>
+      </template>
     </div>
   </div>
 

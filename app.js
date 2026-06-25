@@ -242,6 +242,9 @@ const I18N = {
     selectStore: "-- Chọn cửa hàng --",
     selectVendor: "-- Chọn nhà cung cấp --",
     paymentMethod: "Phương thức thanh toán",
+    addItemBtn: "+ Thêm mục",
+    msgAtLeastOneItem: "Cần ít nhất 1 mục",
+    msgItemsRegistered: "mục đã đăng ký",
     payCash: "Tiền mặt",
     payTransfer: "Chuyển khoản ngay",
     payTransferEom: "Chuyển khoản cuối tháng",
@@ -539,6 +542,9 @@ const I18N = {
     selectStore: "-- 店舗を選択 --",
     selectVendor: "-- 取引先を選択 --",
     paymentMethod: "支払い方法",
+    addItemBtn: "+ アイテムを追加",
+    msgAtLeastOneItem: "アイテムは最低1件必要です",
+    msgItemsRegistered: "件 登録しました",
     payCash: "現金",
     payTransfer: "銀行即時振込",
     payTransferEom: "銀行月末振込",
@@ -1960,18 +1966,75 @@ document.getElementById("purchaseClose").addEventListener("click", closePurchase
 document.getElementById("purchaseCancel").addEventListener("click", closePurchaseModal);
 document.querySelector("#purchaseModal .modal-backdrop").addEventListener("click", closePurchaseModal);
 
-["pUnitPrice", "pQuantity", "pTaxRate"].forEach((id) => {
-  document.getElementById(id).addEventListener("input", recalcPurchaseAmount);
-});
+// ----- 一括登録: 仕入アイテム行の動的追加/削除/合計 -----
+document.getElementById("pAddItem").addEventListener("click", () => addPurchaseItem());
+
+function addPurchaseItem() {
+  const tpl = document.getElementById("pItemTemplate");
+  const clone = tpl.content.firstElementChild.cloneNode(true);
+  // i18n 反映
+  applyLanguageTo(clone);
+  // 削除ボタン
+  clone.querySelector(".batch-item-remove").addEventListener("click", () => removePurchaseItem(clone));
+  // 合計再計算トリガー
+  ["unitPrice", "quantity", "taxRate"].forEach((f) => {
+    const el = clone.querySelector(`[data-field='${f}']`);
+    if (el) {
+      el.addEventListener("input", recalcPurchaseAmount);
+      el.addEventListener("change", recalcPurchaseAmount);
+    }
+  });
+  document.getElementById("pItemsList").appendChild(clone);
+  reindexPurchaseItems();
+  recalcPurchaseAmount();
+}
+
+function removePurchaseItem(row) {
+  const list = document.getElementById("pItemsList");
+  if (list.children.length <= 1) {
+    showToast(t("msgAtLeastOneItem"), "error");
+    return;
+  }
+  row.remove();
+  reindexPurchaseItems();
+  recalcPurchaseAmount();
+}
+
+function reindexPurchaseItems() {
+  const list = document.getElementById("pItemsList");
+  const items = Array.from(list.children);
+  items.forEach((item, idx) => {
+    item.querySelector(".batch-item-index").textContent = `#${idx + 1}`;
+    const rm = item.querySelector(".batch-item-remove");
+    rm.disabled = items.length <= 1;
+  });
+  // 送信ボタンに件数を表示
+  const btn = document.getElementById("pSubmitBtn");
+  if (btn) btn.textContent = `${t("registerBtn")} (${items.length})`;
+}
 
 function recalcPurchaseAmount() {
-  const u = parseFloat(document.getElementById("pUnitPrice").value) || 0;
-  const q = parseFloat(document.getElementById("pQuantity").value) || 0;
-  const r = parseFloat(document.getElementById("pTaxRate").value) || 0;
-  const excl = u * q;
-  const incl = excl * (1 + r / 100);
-  document.getElementById("pAmountExcl").textContent = fmtVnd(excl);
-  document.getElementById("pAmountIncl").textContent = fmtVnd(incl);
+  let totalExcl = 0;
+  let totalIncl = 0;
+  document.querySelectorAll("#pItemsList .batch-item").forEach((item) => {
+    const u = parseFloat(item.querySelector("[data-field='unitPrice']").value) || 0;
+    const q = parseFloat(item.querySelector("[data-field='quantity']").value) || 0;
+    const r = parseFloat(item.querySelector("[data-field='taxRate']").value) || 0;
+    const excl = u * q;
+    totalExcl += excl;
+    totalIncl += excl * (1 + r / 100);
+  });
+  document.getElementById("pAmountExcl").textContent = fmtVnd(totalExcl);
+  document.getElementById("pAmountIncl").textContent = fmtVnd(totalIncl);
+}
+
+// 指定要素配下の data-i18n を現在の言語で置換
+function applyLanguageTo(root) {
+  root.querySelectorAll("[data-i18n]").forEach((el) => {
+    const key = el.getAttribute("data-i18n");
+    const val = t(key);
+    if (val && val !== key) el.textContent = val;
+  });
 }
 
 function fillSelectFromMaster(selectId, items, placeholderKey, opts) {
@@ -2013,7 +2076,6 @@ function openPurchaseModal() {
   fillSelectFromMaster("pStore", txStores, "selectStore");
   fillSelectFromMaster("pVendor", txVendors, "selectVendor");
 
-  document.getElementById("pTaxRate").value = "8";
   const today = new Date();
   document.getElementById("pDate").value =
     today.getFullYear() + "-" +
@@ -2022,7 +2084,9 @@ function openPurchaseModal() {
   // Preselect store from filter if any
   const filterStore = document.getElementById("purchaseStoreFilter").value;
   if (filterStore) document.getElementById("pStore").value = filterStore;
-  recalcPurchaseAmount();
+  // Reset items list & start with 1 item
+  document.getElementById("pItemsList").innerHTML = "";
+  addPurchaseItem();
   document.getElementById("purchaseModal").classList.remove("hidden");
 }
 
@@ -2030,28 +2094,42 @@ function closePurchaseModal() {
   document.getElementById("purchaseModal").classList.add("hidden");
 }
 
+function collectPurchaseItems() {
+  return Array.from(document.querySelectorAll("#pItemsList .batch-item")).map((row) => ({
+    productName: row.querySelector("[data-field='productName']").value.trim(),
+    category:    row.querySelector("[data-field='category']").value,
+    unitPrice:   row.querySelector("[data-field='unitPrice']").value || 0,
+    quantity:    row.querySelector("[data-field='quantity']").value || 0,
+    taxRate:     row.querySelector("[data-field='taxRate']").value,
+    note:        row.querySelector("[data-field='note']").value.trim(),
+  }));
+}
+
 document.getElementById("purchaseForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const $ = (id) => document.getElementById(id).value;
+  const items = collectPurchaseItems();
+  // 必須チェック: 日付・店舗
+  if (!$("pDate") || !$("pStore").trim()) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
+  // 商品名が空のアイテムを除外
+  const validItems = items.filter((it) => it.productName);
+  if (validItems.length === 0) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
   const payload = {
     date: $("pDate"),
     store: $("pStore").trim(),
     vendor: $("pVendor").trim(),
-    productName: $("pProductName").trim(),
-    category: $("pCategory"),
-    unitPrice: $("pUnitPrice"),
-    quantity: $("pQuantity"),
-    taxRate: $("pTaxRate"),
     paymentMethod: $("pPaymentMethod"),
-    note: $("pNote").trim(),
+    items: validItems,
   };
-  if (!payload.date || !payload.store || !payload.productName) {
-    showToast(t("msgRequiredFields"), "error");
-    return;
-  }
-  const r = await api("registerPurchase", payload);
+  const r = await api("registerPurchaseBatch", payload);
   if (r.success) {
-    showToast(t("msgTxRegistered"), "success");
+    showToast(`${r.inserted || validItems.length} ${t("msgItemsRegistered")}`, "success");
     closePurchaseModal();
     await loadStores();
     loadPurchases();
@@ -2188,7 +2266,6 @@ function openPettyModal() {
   document.querySelectorAll(".type-toggle-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.type === "out")
   );
-  document.getElementById("cTaxRate").value = "8";
   const today = new Date();
   document.getElementById("cDate").value =
     today.getFullYear() + "-" +
@@ -2196,6 +2273,9 @@ function openPettyModal() {
     String(today.getDate()).padStart(2, "0");
   const filterStore = document.getElementById("pettyStoreFilter").value;
   if (filterStore) document.getElementById("cStore").value = filterStore;
+  // Reset items & start with 1 item
+  document.getElementById("cItemsList").innerHTML = "";
+  addPettyItem();
   document.getElementById("pettyModal").classList.remove("hidden");
 }
 
@@ -2203,29 +2283,89 @@ function closePettyModal() {
   document.getElementById("pettyModal").classList.add("hidden");
 }
 
+// ----- 一括登録: 小口アイテム行 -----
+document.getElementById("cAddItem").addEventListener("click", () => addPettyItem());
+
+function addPettyItem() {
+  const tpl = document.getElementById("cItemTemplate");
+  const clone = tpl.content.firstElementChild.cloneNode(true);
+  applyLanguageTo(clone);
+  clone.querySelector(".batch-item-remove").addEventListener("click", () => removePettyItem(clone));
+  ["amount"].forEach((f) => {
+    const el = clone.querySelector(`[data-field='${f}']`);
+    if (el) el.addEventListener("input", recalcPettyAmount);
+  });
+  document.getElementById("cItemsList").appendChild(clone);
+  reindexPettyItems();
+  recalcPettyAmount();
+}
+
+function removePettyItem(row) {
+  const list = document.getElementById("cItemsList");
+  if (list.children.length <= 1) {
+    showToast(t("msgAtLeastOneItem"), "error");
+    return;
+  }
+  row.remove();
+  reindexPettyItems();
+  recalcPettyAmount();
+}
+
+function reindexPettyItems() {
+  const list = document.getElementById("cItemsList");
+  const items = Array.from(list.children);
+  items.forEach((item, idx) => {
+    item.querySelector(".batch-item-index").textContent = `#${idx + 1}`;
+    item.querySelector(".batch-item-remove").disabled = items.length <= 1;
+  });
+  const btn = document.getElementById("cSubmitBtn");
+  if (btn) btn.textContent = `${t("registerBtn")} (${items.length})`;
+}
+
+function recalcPettyAmount() {
+  let total = 0;
+  document.querySelectorAll("#cItemsList .batch-item").forEach((row) => {
+    total += parseFloat(row.querySelector("[data-field='amount']").value) || 0;
+  });
+  document.getElementById("cTotalAmount").textContent = fmtVnd(total);
+}
+
+function collectPettyItems() {
+  return Array.from(document.querySelectorAll("#cItemsList .batch-item")).map((row) => ({
+    category:    row.querySelector("[data-field='category']").value,
+    subCategory: row.querySelector("[data-field='subCategory']").value.trim(),
+    productName: row.querySelector("[data-field='productName']").value.trim(),
+    amount:      row.querySelector("[data-field='amount']").value || 0,
+    taxRate:     row.querySelector("[data-field='taxRate']").value,
+    note:        row.querySelector("[data-field='note']").value.trim(),
+  }));
+}
+
 document.getElementById("pettyForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const $ = (id) => document.getElementById(id).value;
+  const items = collectPettyItems();
+  if (!$("cDate") || !$("cStore").trim()) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
+  // category と amount が両方ある行のみ有効扱い
+  const validItems = items.filter((it) => it.category && Number(it.amount) > 0);
+  if (validItems.length === 0) {
+    showToast(t("msgRequiredFields"), "error");
+    return;
+  }
   const payload = {
     date: $("cDate"),
     store: $("cStore").trim(),
     type: pettyType,
-    category: $("cCategory"),
-    subCategory: $("cSubCategory").trim(),
-    productName: $("cProductName").trim(),
-    amount: $("cAmount"),
-    taxRate: $("cTaxRate"),
     vendor: $("cVendor").trim(),
     taxCode: $("cTaxCode").trim(),
-    note: $("cNote").trim(),
+    items: validItems,
   };
-  if (!payload.date || !payload.store || !payload.category || !payload.amount) {
-    showToast(t("msgRequiredFields"), "error");
-    return;
-  }
-  const r = await api("registerPettyCash", payload);
+  const r = await api("registerPettyCashBatch", payload);
   if (r.success) {
-    showToast(t("msgTxRegistered"), "success");
+    showToast(`${r.inserted || validItems.length} ${t("msgItemsRegistered")}`, "success");
     closePettyModal();
     await loadStores();
     loadPettyCash();
