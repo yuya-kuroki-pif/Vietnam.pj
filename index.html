@@ -354,32 +354,54 @@
       </div>
     </section>
 
-    <!-- Attendance management screen (一覧 + 修正) -->
+    <!-- Attendance management screen (月間カレンダー表示) -->
     <section id="attendanceManageScreen" class="screen">
       <div class="card">
         <h2 data-i18n="attMngTitle">勤怠管理</h2>
 
         <div class="dash-toolbar">
           <select id="attMngUserFilter" class="tx-input">
-            <option value="" data-i18n="attMngAllUsers">-- 全ユーザー --</option>
+            <option value="" data-i18n="pickPlaceholder">-- 選択してください --</option>
           </select>
         </div>
-        <div class="dash-toolbar dash-date-range">
-          <label class="dash-range-label" data-i18n="dashRangeLabel">期間</label>
-          <input type="date" id="attMngDateFrom" class="tx-input dash-date-input" />
-          <span class="dash-range-sep">〜</span>
-          <input type="date" id="attMngDateTo" class="tx-input dash-date-input" />
-          <button type="button" id="attMngTodayBtn" class="btn btn-ghost btn-sm" data-i18n="dashRangeToday">本日</button>
+
+        <div class="dash-toolbar att-month-nav">
+          <button type="button" id="attMngPrevMonth" class="btn btn-ghost month-btn">«</button>
+          <span id="attMngMonthLabel" class="att-month-label">2026/05</span>
+          <button type="button" id="attMngNextMonth" class="btn btn-ghost month-btn">»</button>
           <button type="button" id="attMngThisMonthBtn" class="btn btn-ghost btn-sm" data-i18n="dashRangeThisMonth">今月</button>
         </div>
 
-        <div class="dash-actions">
-          <button type="button" id="attMngAddBtn" class="btn btn-primary" data-i18n="attMngAddBtn">+ 打刻を追加</button>
+        <!-- 月間サマリ: 総労働時間 / 出勤日数 -->
+        <div class="att-summary">
+          <div class="att-summary-cell">
+            <div class="att-summary-label" data-i18n="attMngTotalHoursLabel">月間総労働時間</div>
+            <div class="att-summary-value" id="attMngTotalHours">—</div>
+          </div>
+          <div class="att-summary-cell">
+            <div class="att-summary-label" data-i18n="attMngTotalDaysLabel">出勤日数</div>
+            <div class="att-summary-value" id="attMngTotalDays">—</div>
+          </div>
         </div>
 
-        <div id="attMngList" class="tx-list"></div>
+        <div id="attMngCalendar" class="att-calendar"></div>
       </div>
     </section>
+
+    <!-- 1日分の打刻詳細モーダル(編集/削除/追加の入口) -->
+    <div id="attDayModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card">
+        <button type="button" class="modal-close" id="attDayClose">&times;</button>
+        <h3>
+          <span id="attDayModalDate">—</span>
+          <span id="attDayModalUser" style="color:var(--muted);font-size:14px;font-weight:400;margin-left:8px;"></span>
+        </h3>
+        <div id="attDayPunches" class="att-day-punches"></div>
+        <button type="button" id="attDayAddBtn" class="btn btn-primary" data-i18n="attMngAddBtn">+ 打刻を追加</button>
+        <button type="button" id="attDayCancel" class="btn btn-ghost btn-block" data-i18n="close">閉じる</button>
+      </div>
+    </div>
 
     <!-- Attendance edit / add modal -->
     <div id="attEditModal" class="modal hidden" aria-hidden="true">

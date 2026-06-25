@@ -248,6 +248,9 @@ const I18N = {
     menuAttendanceManage: "Sửa chấm công",
     attMngTitle: "Quản lý chấm công",
     attMngAllUsers: "-- Tất cả --",
+    attMngPickUserFirst: "Vui lòng chọn nhân viên",
+    attMngTotalHoursLabel: "Tổng giờ làm trong tháng",
+    attMngTotalDaysLabel: "Số ngày làm",
     attMngAddBtn: "+ Thêm bản ghi",
     attMngUser: "Nhân viên",
     attMngTime: "Giờ",
@@ -563,6 +566,9 @@ const I18N = {
     menuAttendanceManage: "勤怠管理",
     attMngTitle: "勤怠管理(一覧・修正)",
     attMngAllUsers: "-- 全ユーザー --",
+    attMngPickUserFirst: "従業員を選択してください",
+    attMngTotalHoursLabel: "月間総労働時間",
+    attMngTotalDaysLabel: "出勤日数",
     attMngAddBtn: "+ 打刻を追加",
     attMngUser: "ユーザー",
     attMngTime: "時刻",
@@ -4101,156 +4107,350 @@ document.getElementById("stkManualForm").addEventListener("submit", async (e) =>
 });
 
 // ============================================================
-// Attendance Management (一覧 + 修正)
+// Attendance Management (月間カレンダー表示)
 // ============================================================
-let attMngState = { userId: "", dateFrom: "", dateTo: "" };
+let attCalState = { userId: "", year: null, month: null, byDate: {} };
+let attDayModalDate = "";
 
 function enterAttendanceManageScreen() {
-  // Refresh user picker (uses the global `users` list)
+  // ユーザーピッカー初期化(プレースホルダーのみ、必須選択)
   const sel = document.getElementById("attMngUserFilter");
-  sel.innerHTML = '<option value="">' + t("attMngAllUsers") + "</option>";
+  sel.innerHTML = '<option value="">' + t("pickPlaceholder") + "</option>";
   users.forEach((u) => {
     const opt = document.createElement("option");
     opt.value = u.id;
     opt.textContent = u.name;
     sel.appendChild(opt);
   });
-  sel.value = attMngState.userId || "";
+  sel.value = attCalState.userId || "";
 
-  // Default range = this month
-  if (!attMngState.dateFrom || !attMngState.dateTo) {
+  // 初回は今月にセット
+  if (attCalState.year === null) {
     const now = new Date();
-    const y = now.getFullYear(), m = now.getMonth() + 1;
-    const last = new Date(y, m, 0).getDate();
-    attMngState.dateFrom = `${y}-${String(m).padStart(2, "0")}-01`;
-    attMngState.dateTo = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+    attCalState.year = now.getFullYear();
+    attCalState.month = now.getMonth() + 1;
   }
-  document.getElementById("attMngDateFrom").value = attMngState.dateFrom;
-  document.getElementById("attMngDateTo").value = attMngState.dateTo;
-
-  loadAttendanceList();
+  updateAttMonthLabel();
+  if (attCalState.userId) loadAttendanceMonth();
+  else renderAttendanceCalendarEmpty();
 }
 
-function attMngSetThisMonth() {
-  const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth() + 1;
-  const last = new Date(y, m, 0).getDate();
-  attMngState.dateFrom = `${y}-${String(m).padStart(2, "0")}-01`;
-  attMngState.dateTo = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
-  document.getElementById("attMngDateFrom").value = attMngState.dateFrom;
-  document.getElementById("attMngDateTo").value = attMngState.dateTo;
-  loadAttendanceList();
+function renderAttendanceCalendarEmpty() {
+  document.getElementById("attMngCalendar").innerHTML =
+    `<div class="tx-empty">${t("attMngPickUserFirst")}</div>`;
+  document.getElementById("attMngTotalHours").textContent = "—";
+  document.getElementById("attMngTotalDays").textContent = "—";
 }
 
-function attMngSetToday() {
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  attMngState.dateFrom = today;
-  attMngState.dateTo = today;
-  document.getElementById("attMngDateFrom").value = today;
-  document.getElementById("attMngDateTo").value = today;
-  loadAttendanceList();
+function updateAttMonthLabel() {
+  document.getElementById("attMngMonthLabel").textContent =
+    `${attCalState.year}/${String(attCalState.month).padStart(2, "0")}`;
 }
 
 document.getElementById("attMngUserFilter").addEventListener("change", (e) => {
-  attMngState.userId = e.target.value;
-  loadAttendanceList();
+  attCalState.userId = e.target.value;
+  if (attCalState.userId) loadAttendanceMonth();
+  else renderAttendanceCalendarEmpty();
 });
-document.getElementById("attMngDateFrom").addEventListener("change", (e) => {
-  attMngState.dateFrom = e.target.value;
-  loadAttendanceList();
-});
-document.getElementById("attMngDateTo").addEventListener("change", (e) => {
-  attMngState.dateTo = e.target.value;
-  loadAttendanceList();
-});
-document.getElementById("attMngTodayBtn").addEventListener("click", attMngSetToday);
-document.getElementById("attMngThisMonthBtn").addEventListener("click", attMngSetThisMonth);
-document.getElementById("attMngAddBtn").addEventListener("click", () => openAttEditModal(null));
 
-async function loadAttendanceList() {
+document.getElementById("attMngPrevMonth").addEventListener("click", () => {
+  attCalState.month -= 1;
+  if (attCalState.month < 1) { attCalState.month = 12; attCalState.year -= 1; }
+  updateAttMonthLabel();
+  if (attCalState.userId) loadAttendanceMonth();
+});
+
+document.getElementById("attMngNextMonth").addEventListener("click", () => {
+  attCalState.month += 1;
+  if (attCalState.month > 12) { attCalState.month = 1; attCalState.year += 1; }
+  updateAttMonthLabel();
+  if (attCalState.userId) loadAttendanceMonth();
+});
+
+document.getElementById("attMngThisMonthBtn").addEventListener("click", () => {
+  const now = new Date();
+  attCalState.year = now.getFullYear();
+  attCalState.month = now.getMonth() + 1;
+  updateAttMonthLabel();
+  if (attCalState.userId) loadAttendanceMonth();
+});
+
+async function loadAttendanceMonth() {
+  const y = attCalState.year, m = attCalState.month;
+  const last = new Date(y, m, 0).getDate();
+  const dateFrom = `${y}-${String(m).padStart(2, "0")}-01`;
+  const dateTo   = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
   const r = await api("listAttendance", {
-    userId: attMngState.userId,
-    dateFrom: attMngState.dateFrom,
-    dateTo: attMngState.dateTo,
+    userId: attCalState.userId,
+    dateFrom, dateTo,
   });
-  renderAttendanceList((r && r.records) || []);
+  attCalState.byDate = {};
+  ((r && r.records) || []).forEach((rec) => {
+    const d = rec.date;
+    if (!attCalState.byDate[d]) attCalState.byDate[d] = [];
+    attCalState.byDate[d].push(rec);
+  });
+  Object.keys(attCalState.byDate).forEach((d) => {
+    attCalState.byDate[d].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  });
+  renderAttendanceCalendar();
+  updateAttMonthSummary();
 }
 
-function renderAttendanceList(records) {
-  const root = document.getElementById("attMngList");
+// 月間総労働時間と出勤日数を集計してヘッダに表示。
+// 算出ロジックは Code.gs:calcAttendanceLaborCost と整合させる:
+// - clock_in → 次の clock_out までを労働時間
+// - その間の break_start → break_end は控除
+// - 退勤忘れ(対応する clock_out がない clock_in)は無視
+// - 月跨ぎ夜勤等は表示中の月の範囲外イベントを読めないので、
+//   その月内の clock_in を起点としたペアのみで計算する近似値
+function updateAttMonthSummary() {
+  // 月内の全打刻を時系列に
+  const all = [];
+  Object.keys(attCalState.byDate).forEach((d) => {
+    attCalState.byDate[d].forEach((p) => all.push(p));
+  });
+  all.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  let totalMs = 0;
+  let workDays = 0;
+  const workDaySet = new Set();
+  let clockIn = null;
+  let breakStart = null;
+  let breakTotalMs = 0;
+
+  for (let i = 0; i < all.length; i++) {
+    const e = all[i];
+    const ts = new Date(e.timestamp);
+    if (e.type === "clock_in") {
+      clockIn = ts;
+      breakStart = null;
+      breakTotalMs = 0;
+      workDaySet.add(e.date);
+    } else if (e.type === "break_start" && clockIn) {
+      breakStart = ts;
+    } else if (e.type === "break_end" && breakStart) {
+      breakTotalMs += (ts - breakStart);
+      breakStart = null;
+    } else if (e.type === "clock_out" && clockIn) {
+      const dur = (ts - clockIn) - breakTotalMs;
+      if (dur > 0) totalMs += dur;
+      clockIn = null;
+      breakStart = null;
+      breakTotalMs = 0;
+    }
+  }
+  workDays = workDaySet.size;
+
+  const totalMinutes = Math.round(totalMs / 60000);
+  const hh = Math.floor(totalMinutes / 60);
+  const mm = totalMinutes % 60;
+  document.getElementById("attMngTotalHours").textContent =
+    `${hh}h ${String(mm).padStart(2, "0")}m`;
+  document.getElementById("attMngTotalDays").textContent = `${workDays}日`;
+}
+
+function renderAttendanceCalendar() {
+  const root = document.getElementById("attMngCalendar");
   root.innerHTML = "";
-  if (!records.length) {
-    const div = document.createElement("div");
-    div.className = "tx-empty";
-    div.textContent = t("attMngEmpty");
-    root.appendChild(div);
+
+  // 曜日ヘッダー
+  const weekdays = document.createElement("div");
+  weekdays.className = "cal-weekdays";
+  const wkKeys = ["weekdaySun", "weekdayMon", "weekdayTue", "weekdayWed", "weekdayThu", "weekdayFri", "weekdaySat"];
+  for (let i = 0; i < 7; i++) {
+    const w = document.createElement("div");
+    w.className = "cal-weekday";
+    if (i === 0) w.classList.add("sun");
+    if (i === 6) w.classList.add("sat");
+    w.textContent = t(wkKeys[i]);
+    weekdays.appendChild(w);
+  }
+  root.appendChild(weekdays);
+
+  // 日付グリッド
+  const grid = document.createElement("div");
+  grid.className = "cal-grid";
+
+  const firstDay = new Date(attCalState.year, attCalState.month - 1, 1);
+  const lastDay = new Date(attCalState.year, attCalState.month, 0);
+  const startWeekday = firstDay.getDay();
+  const totalDays = lastDay.getDate();
+  const totalCells = Math.ceil((startWeekday + totalDays) / 7) * 7;
+  const todayStr = todayLocalStr();
+
+  for (let i = 0; i < totalCells; i++) {
+    const cell = document.createElement("div");
+    cell.className = "cal-day";
+    const dayNum = i - startWeekday + 1;
+
+    if (dayNum < 1 || dayNum > totalDays) {
+      cell.classList.add("cal-other-month");
+      const fillDay = dayNum < 1
+        ? new Date(attCalState.year, attCalState.month - 1, dayNum)
+        : new Date(attCalState.year, attCalState.month, dayNum - totalDays);
+      const numEl = document.createElement("div");
+      numEl.className = "cal-day-num";
+      numEl.textContent = String(fillDay.getDate());
+      cell.appendChild(numEl);
+    } else {
+      const weekday = (startWeekday + dayNum - 1) % 7;
+      if (weekday === 0) cell.classList.add("cal-sun");
+      if (weekday === 6) cell.classList.add("cal-sat");
+
+      const dateStr = `${attCalState.year}-${String(attCalState.month).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+      if (dateStr === todayStr) cell.classList.add("cal-today");
+
+      const numEl = document.createElement("div");
+      numEl.className = "cal-day-num";
+      numEl.textContent = String(dayNum);
+      cell.appendChild(numEl);
+
+      const punches = attCalState.byDate[dateStr] || [];
+      if (punches.length) {
+        const chips = document.createElement("div");
+        chips.className = "att-day-chips";
+        const ins  = punches.filter((p) => p.type === "clock_in");
+        const outs = punches.filter((p) => p.type === "clock_out");
+        const brks = punches.filter((p) => p.type === "break_start" || p.type === "break_end");
+        if (ins.length) {
+          const c = document.createElement("div");
+          c.className = "att-day-chip in";
+          c.textContent = "出 " + hhmm(ins[0].timestamp);
+          chips.appendChild(c);
+        }
+        if (outs.length) {
+          const c = document.createElement("div");
+          c.className = "att-day-chip out";
+          c.textContent = "退 " + hhmm(outs[outs.length - 1].timestamp);
+          chips.appendChild(c);
+        }
+        if (brks.length) {
+          const c = document.createElement("div");
+          c.className = "att-day-chip brk";
+          c.textContent = `休 ${Math.floor(brks.length / 2)}回`;
+          chips.appendChild(c);
+        }
+        if (ins.length > outs.length) {
+          const c = document.createElement("div");
+          c.className = "att-day-chip warn";
+          c.textContent = "⚠ 退勤未";
+          chips.appendChild(c);
+        }
+        cell.appendChild(chips);
+      }
+      cell.addEventListener("click", () => openAttDayModal(dateStr));
+    }
+    grid.appendChild(cell);
+  }
+  root.appendChild(grid);
+}
+
+// "2026-05-12T09:00:15+07:00" → "09:00"
+function hhmm(iso) {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// ----- 1日詳細モーダル -----
+function openAttDayModal(dateStr) {
+  attDayModalDate = dateStr;
+  document.getElementById("attDayModalDate").textContent = formatShiftDate(dateStr);
+  const userLabel = document.getElementById("attDayModalUser");
+  const u = users.find((x) => String(x.id) === String(attCalState.userId));
+  userLabel.textContent = u ? `(${u.name})` : "";
+  renderAttDayPunches();
+  document.getElementById("attDayModal").classList.remove("hidden");
+}
+
+function closeAttDayModal() {
+  document.getElementById("attDayModal").classList.add("hidden");
+}
+
+document.getElementById("attDayClose").addEventListener("click", closeAttDayModal);
+document.getElementById("attDayCancel").addEventListener("click", closeAttDayModal);
+document.querySelector("#attDayModal .modal-backdrop").addEventListener("click", closeAttDayModal);
+document.getElementById("attDayAddBtn").addEventListener("click", () => {
+  const targetDate = attDayModalDate;
+  closeAttDayModal();
+  openAttEditModal(null, targetDate);
+});
+
+function renderAttDayPunches() {
+  const root = document.getElementById("attDayPunches");
+  root.innerHTML = "";
+  const punches = attCalState.byDate[attDayModalDate] || [];
+  if (!punches.length) {
+    const empty = document.createElement("div");
+    empty.className = "tx-empty";
+    empty.textContent = t("attMngEmpty");
+    root.appendChild(empty);
     return;
   }
   const typeLabels = {
-    clock_in: "logClockIn",
-    clock_out: "logClockOut",
-    break_start: "logBreakStart",
-    break_end: "logBreakEnd",
+    clock_in: "logClockIn", clock_out: "logClockOut",
+    break_start: "logBreakStart", break_end: "logBreakEnd",
   };
-  records.forEach((rec) => {
-    const card = document.createElement("div");
-    card.className = "att-card";
+  punches.forEach((rec) => {
+    const row = document.createElement("div");
+    row.className = "att-day-punch-row";
 
-    const row1 = document.createElement("div");
-    row1.className = "att-card-row1";
+    const info = document.createElement("div");
+    info.className = "att-day-punch-info";
 
-    const name = document.createElement("span");
-    name.className = "att-card-name";
-    name.textContent = rec.name || rec.userName || rec.userId;
-    row1.appendChild(name);
+    const time = document.createElement("span");
+    time.className = "att-day-punch-time";
+    time.textContent = formatTime(rec.timestamp);
+    info.appendChild(time);
 
     const badge = document.createElement("span");
     badge.className = "att-type-badge att-type-" + rec.type;
     badge.textContent = t(typeLabels[rec.type] || rec.type);
-    row1.appendChild(badge);
+    info.appendChild(badge);
 
-    const dt = document.createElement("span");
-    dt.className = "att-card-datetime";
-    dt.textContent = `${fmtDate(rec.date)} ${formatTime(rec.timestamp)}`;
-    row1.appendChild(dt);
-
-    card.appendChild(row1);
+    // 個人選択モード固定なので名前は表示しない
 
     const actions = document.createElement("div");
-    actions.className = "att-card-actions";
+    actions.className = "att-day-punch-actions";
 
     const editBtn = document.createElement("button");
     editBtn.type = "button";
     editBtn.className = "btn btn-ghost btn-sm";
-    editBtn.textContent = "✏️ " + t("attEditTitle");
-    editBtn.addEventListener("click", () => openAttEditModal(rec));
+    editBtn.textContent = "✏️";
+    editBtn.title = t("attEditTitle");
+    editBtn.addEventListener("click", () => {
+      closeAttDayModal();
+      openAttEditModal(rec);
+    });
     actions.appendChild(editBtn);
 
     const delBtn = document.createElement("button");
     delBtn.type = "button";
     delBtn.className = "btn btn-ghost btn-sm";
     delBtn.style.color = "var(--danger)";
-    delBtn.textContent = "🗑 " + t("deleteBtn");
+    delBtn.textContent = "🗑";
+    delBtn.title = t("deleteBtn");
     delBtn.addEventListener("click", async () => {
       if (!confirm(t("msgDeleteConfirm"))) return;
       const r = await api("deleteAttendance", { id: rec.id });
       if (r.success) {
         showToast(t("msgAttendanceDeleted"), "success");
-        loadAttendanceList();
+        await loadAttendanceMonth();
+        renderAttDayPunches();
       } else {
         showToast(r.message || t("msgError"), "error");
       }
     });
     actions.appendChild(delBtn);
 
-    card.appendChild(actions);
-    root.appendChild(card);
+    row.appendChild(info);
+    row.appendChild(actions);
+    root.appendChild(row);
   });
 }
 
-// ----- Edit / Add modal -----
-function openAttEditModal(rec) {
+// ----- 編集/追加モーダル -----
+function openAttEditModal(rec, defaultDate) {
   const sel = document.getElementById("attEditUserId");
   sel.innerHTML = '<option value=""></option>';
   users.forEach((u) => {
@@ -4272,9 +4472,9 @@ function openAttEditModal(rec) {
   } else {
     title.textContent = t("attAddTitle");
     document.getElementById("attEditId").value = "";
-    document.getElementById("attEditUserId").value = attMngState.userId || "";
+    document.getElementById("attEditUserId").value = attCalState.userId || "";
     const now = new Date();
-    document.getElementById("attEditDate").value =
+    document.getElementById("attEditDate").value = defaultDate ||
       `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     document.getElementById("attEditTime").value =
       `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
@@ -4314,7 +4514,7 @@ document.getElementById("attEditForm").addEventListener("submit", async (e) => {
   if (r.success) {
     showToast(t(id ? "msgAttendanceUpdated" : "msgAttendanceAdded"), "success");
     closeAttEditModal();
-    loadAttendanceList();
+    loadAttendanceMonth();
   } else {
     showToast(r.message || t("msgError"), "error");
   }
@@ -4328,7 +4528,7 @@ document.getElementById("attEditDelete").addEventListener("click", async () => {
   if (r.success) {
     showToast(t("msgAttendanceDeleted"), "success");
     closeAttEditModal();
-    loadAttendanceList();
+    loadAttendanceMonth();
   } else {
     showToast(r.message || t("msgError"), "error");
   }

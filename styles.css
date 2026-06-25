@@ -1767,6 +1767,141 @@ form select:focus {
   width: auto;
 }
 
+/* ── 勤怠カレンダー(月間ビュー) ── */
+.att-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.att-month-label {
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  min-width: 100px;
+  text-align: center;
+}
+
+.att-calendar {
+  margin-top: 8px;
+}
+
+.att-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.att-summary-cell {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.att-summary-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.att-summary-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1e40af;
+  font-variant-numeric: tabular-nums;
+}
+
+.att-calendar .cal-day {
+  cursor: pointer;
+  min-height: 70px;
+}
+
+.att-calendar .cal-day:hover:not(.cal-other-month) {
+  background: #f3f4f6;
+}
+
+.att-day-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.att-day-chip {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.att-day-chip.in        { background: #dcfce7; color: #166534; }
+.att-day-chip.out       { background: #fee2e2; color: #991b1b; }
+.att-day-chip.brk       { background: #fef3c7; color: #92400e; }
+.att-day-chip.count     { background: #dbeafe; color: #1e40af; font-size: 12px; text-align: center; }
+.att-day-chip.count-sub { background: transparent; color: var(--muted); font-size: 10px; text-align: center; }
+.att-day-chip.warn      { background: #fef3c7; color: #92400e; font-size: 9px; }
+
+/* ── 日詳細モーダル内の打刻リスト ── */
+.att-day-punches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 14px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.att-day-punch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.att-day-punch-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.att-day-punch-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.att-day-punch-name {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.att-day-punch-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.att-day-punch-actions .btn-sm {
+  font-size: 14px;
+  padding: 4px 8px;
+  min-height: 0;
+  width: auto;
+}
+
 textarea {
   width: 100%;
   padding: 10px 12px;
