@@ -2018,7 +2018,8 @@ function updateMonthlyLaborCost(body) {
 }
 
 // Aggregate dashboard KPIs for a (store, dateFrom..dateTo).
-// Reads DailySales, Purchases, MonthlyTargets and returns derived metrics.
+// Reads DailySales, Purchases, PettyCash, Stocktakes, MonthlyTargets and
+// returns derived metrics.
 // Monthly target lookup uses the month containing `dateFrom` — that's the
 // "context month" for monthly goal comparisons.
 function getDashboard(body) {
@@ -2081,6 +2082,25 @@ function getDashboard(body) {
     else if (cat === "drink") drinkPurchases += amt;
     else otherCost += amt;
   });
+
+  // 小口現金で仕入れた分 (科目 purchaseFood / purchaseDrink) も仕入れ高に含める。
+  // 小口の amount は税込入力なので、上の Purchases 側の税込換算額とそのまま合算できる。
+  // type="in" は返品・返金とみなして控除する。
+  // 仕入れ高に足し込むため、下の棚卸ベースの使用高計算もそのまま適用される。
+  // その他の科目 (光熱費・通信費・予備金入金など) は原価ではないので対象外。
+  var pettyFoodPurchases = 0, pettyDrinkPurchases = 0;
+  getAllRows(getSheet(PETTY_SHEET)).forEach(function (r) {
+    if (String(r.store) !== store) return;
+    if (!inRange(normalizeDate(r.date))) return;
+    var cat = String(r.category || "");
+    if (cat !== "purchaseFood" && cat !== "purchaseDrink") return;
+    var amt = _toNum(r.amount);
+    if (String(r.type || "out") === "in") amt = -amt;
+    if (cat === "purchaseFood") pettyFoodPurchases += amt;
+    else pettyDrinkPurchases += amt;
+  });
+  foodPurchases += pettyFoodPurchases;
+  drinkPurchases += pettyDrinkPurchases;
 
   // Stocktake-based cost: 当月使用高 = 前月棚卸高 + 当月仕入れ - 当月棚卸高
   // (only applied when stocktake data exists for that category — otherwise we
